@@ -1,5 +1,6 @@
 import pygame 
 from player import Player
+from zombie import normalZombie, bigZombie
 
 class Background: 
     def __init__(self, image):

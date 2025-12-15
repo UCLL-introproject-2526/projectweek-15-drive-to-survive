@@ -7,6 +7,7 @@ class Player:
         self.__create_image(image)
 
     def __create_image(self, image):
+        #laad de auto en zet het op 200 bij 200 pixels
         self.__image = pygame.image.load(image)
         self.__image = pygame.transform.scale(self.__image, (200, 200))
 

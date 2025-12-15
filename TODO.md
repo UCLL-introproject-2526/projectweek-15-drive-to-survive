@@ -11,6 +11,7 @@
     - Meer damage, health, verschillend uiterlijk etc.
 - Brandstof toevoegen zodat auto niet oneindig doorgaat
 - Geldsysteem toevoegen waarmee je upgrades kan kopen
+- grote van de auto moet aangepast worden als het een ramp bevat
 - (Kip (gevoiced door Ben) toevoegen als Easter Egg)
 ---
 
