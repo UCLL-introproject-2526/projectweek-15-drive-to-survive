@@ -1,4 +1,5 @@
-import pygame
+import pygame 
+from player import Player
 
 class Background: 
     def __init__(self, image):
@@ -25,10 +26,21 @@ def create_main_surface():
 def clear_surface(srf):
     srf.fill((0,0,0))
 
-def render_frame(srf, state):
+def render_frame(srf, state, player):
     clear_surface(srf)
     state.render(srf)
+    player.render(srf)
     pygame.display.flip()
+
+def process_key_input(player, key):
+    if key == pygame.K_UP:
+        player.y -= 10
+    elif key == pygame.K_DOWN:
+        player.y += 10
+    elif key == pygame.K_LEFT:
+        player.x -= 10
+    elif key == pygame.K_RIGHT:
+        player.x += 10
 
 def main():
     pygame.init()
@@ -36,6 +48,7 @@ def main():
     srf = create_main_surface()
     # Clock voor fps vast te zetten - anders gaat spel te snel
     state = State()
+    player = Player('images/first-car-consept.png')
     clock = pygame.time.Clock()
     # Gameloop
     while True:
@@ -43,5 +56,7 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
-        render_frame(srf, state)
+            if event.type == pygame.KEYDOWN:
+                process_key_input(player, event.key)
+        render_frame(srf, state, player)
 main()
