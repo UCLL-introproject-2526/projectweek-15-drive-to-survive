@@ -71,7 +71,7 @@ class Upgrade:
         self.price = data.get("price", 50)
         img_file = os.path.join(folder, "image.png")
         self.image = pygame.image.load(img_file).convert_alpha()
-        self.image_small = pygame.transform.scale(self.image, (80, 40))
+        self.image_small = pygame.transform.scale(self.image, (80, 60))
         self.purchased = False
 
 def load_upgrades():
@@ -242,7 +242,14 @@ def garage(car):
             pygame.draw.rect(screen, (80,80,80), item_rect)
             if item_rect.collidepoint(pygame.mouse.get_pos()):
                 pygame.draw.rect(screen, (120,120,120), item_rect)
-            screen.blit(upgrade.image_small, (item_rect.x + 5, item_rect.y + 10))
+
+            # Align bottom of image to bottom of the button
+            img = upgrade.image_small
+            img_x = item_rect.x + 5
+            img_y = item_rect.bottom - img.get_height()-15
+            screen.blit(img, (img_x, img_y))
+
+            # Gray out if not enough money
             text_color = WHITE if money >= upgrade.price else (150, 150, 150)
             text = small_font.render(f"{upgrade.name} - ${upgrade.price}", True, text_color)
             screen.blit(text, (item_rect.x + 90, item_rect.y + 15))
@@ -267,7 +274,7 @@ def garage(car):
             msg = small_font.render(f"Purchase {confirmation_upgrade.name} for ${confirmation_upgrade.price}?", True, WHITE)
             screen.blit(msg, (popup_rect.centerx - msg.get_width()//2, popup_rect.y + 20))
 
-            # Create temporary preview image
+            # Preview image in popup
             temp_image = car.base_image.copy()
             for up_img in car.upgrades_images:
                 up_scaled = pygame.transform.scale(up_img, (int(up_img.get_width()*0.2), int(up_img.get_height()*0.2)))
