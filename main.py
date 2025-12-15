@@ -30,17 +30,21 @@ def render_frame(srf, state, player):
     clear_surface(srf)
     state.render(srf)
     player.render(srf)
+    
+    # Display player.x rechtsboven
+    font = pygame.font.Font(None, 36)
+    text = font.render(f'X: {int(player.x)}', True, (255, 255, 255))
+    text_rect = text.get_rect(topright=(1024 - 10, 10))
+    srf.blit(text, text_rect)
+    
     pygame.display.flip()
 
-def process_key_input(player, key):
-    if key == pygame.K_UP:
-        player.y -= 10
-    elif key == pygame.K_DOWN:
-        player.y += 10
-    elif key == pygame.K_LEFT:
-        player.x -= 10
-    elif key == pygame.K_RIGHT:
-        player.x += 10
+def process_key_input(player, keys, screen_width):
+    # Player image is 200 pixels breed, dus we checken van 0 tot screen_width - 200
+    if keys[pygame.K_LEFT] and player.x > 0:
+        player.x -= 2
+    if keys[pygame.K_RIGHT] and player.x < screen_width - 200:
+        player.x += 2
 
 def main():
     pygame.init()
@@ -48,7 +52,7 @@ def main():
     srf = create_main_surface()
     # Clock voor fps vast te zetten - anders gaat spel te snel
     state = State()
-    player = Player('images/first-car-consept.png')
+    player = Player('images/first-car-concept.png')
     clock = pygame.time.Clock()
     # Gameloop
     while True:
@@ -56,7 +60,7 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
-            if event.type == pygame.KEYDOWN:
-                process_key_input(player, event.key)
+        keys = pygame.key.get_pressed()
+        process_key_input(player, keys, 1024)
         render_frame(srf, state, player)
 main()

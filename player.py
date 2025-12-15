@@ -3,7 +3,7 @@ import pygame
 class Player: 
     def __init__(self, image):
         self.x = 25
-        self.y = 500
+        self.y = 475
         self.__create_image(image)
 
     def __create_image(self, image):
