@@ -76,6 +76,7 @@ class Player:
             # In de lucht
             if self.air_angle is None:
                 self.air_angle = self.angle
+            self.angle += self.speed * -0.03
             # Behoud de angle in de lucht
             self.speed *= self.AIR_FRICTION
         
