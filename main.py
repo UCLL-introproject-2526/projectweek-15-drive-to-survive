@@ -1,4 +1,5 @@
 import pygame 
+import math
 from player import Player
 from zombie import normalZombie, bigZombie
 
@@ -25,7 +26,7 @@ class Button:
         self.__icon = None
         if icon_path:
             self.__icon = pygame.image.load(icon_path)
-            # Scale icon to fit button with some padding
+            # Beetje padding adden zodat het settings icoon past
             icon_size = min(width - 10, height - 10)
             self.__icon = pygame.transform.scale(self.__icon, (int(icon_size), int(icon_size)))
     
@@ -43,7 +44,7 @@ class Button:
         pygame.draw.rect(srf, (255, 255, 255), self.__rect, 2)  # Border
         
         if self.__icon:
-            # Center the icon in the button
+            # Icoon centreren in de button
             icon_rect = self.__icon.get_rect(center=self.__rect.center)
             srf.blit(self.__icon, icon_rect)
         
@@ -65,7 +66,7 @@ class Background:
 class StartScreen:
     def __init__(self):
         self.__background = Background('images/Background-image.png')
-        # self.__logo = Logo('images/logo.png', 412, 100, 200, 150)
+        self.__logo = Logo('images/UI/logo.png', 287, 60, 450, 325)
         
         # Buttons
         self.__start_button = Button(412, 350, 200, 60, 'Start Game', (50, 150, 50), (70, 200, 70))
@@ -92,7 +93,7 @@ class StartScreen:
     
     def render(self, srf):
         self.__background.render(srf)
-        # self.__logo.render(srf)
+        self.__logo.render(srf)
         self.__start_button.render(srf)
         self.__credits_button.render(srf)
         self.__quit_button.render(srf)
@@ -101,9 +102,33 @@ class StartScreen:
 class State:
     def __init__(self):
         self.__background = Background('images/Background-image.png')
+        self.terrain_points = {}
+        self.TERRAIN_STEP = 10
 
-    def render(self, srf):
+    def generate_height(self, x):
+        base = 768 - 140
+        return base + math.sin(x * 0.006) * 20 + math.sin(x * 0.02) * 5
+    
+    def get_ground_height(self, x):
+        if x not in self.terrain_points:
+            self.terrain_points[x] = self.generate_height(x)
+        return self.terrain_points[x]
+    
+    def draw_ground(self, srf, cam_x):
+        GROUND = (110, 85, 55)
+        GROUND_DARK = (80, 60, 40)
+        pts = []
+        start = int(cam_x) - 400
+        for x in range(start, start + 1024 + 800, self.TERRAIN_STEP):
+            sx = x - cam_x + 1024//3
+            pts.append((sx, self.get_ground_height(x)))
+        pts += [(1024, 768), (0, 768)]
+        pygame.draw.polygon(srf, GROUND, pts)
+        pygame.draw.lines(srf, GROUND_DARK, False, pts[:-2], 3)
+
+    def render(self, srf, cam_x):
         self.__background.render(srf)
+        self.draw_ground(srf, cam_x)
 
 def create_main_surface():
     screen_size = (1024, 768)
@@ -115,23 +140,26 @@ def clear_surface(srf):
 
 def render_frame(srf, state, player):
     clear_surface(srf)
-    state.render(srf)
-    player.render(srf)
+    state.render(srf, player.world_x)
+    player.render(srf, state)
     
-    # Display player.x rechtsboven
+    # Display player.world_x rechtsboven
     font = pygame.font.Font(None, 36)
-    text = font.render(f'X: {int(player.x)}', True, (255, 255, 255))
+    text = font.render(f'Distance: {int(player.world_x)}', True, (255, 255, 255))
     text_rect = text.get_rect(topright=(1024 - 10, 10))
     srf.blit(text, text_rect)
     
     pygame.display.flip()
 
-def process_key_input(player, keys, screen_width):
-    # Player image is 200 pixels breed, dus we checken van 0 tot screen_width - 200
-    if keys[pygame.K_LEFT] and player.x > 0:
-        player.x -= 5
-    if keys[pygame.K_RIGHT] and player.x < screen_width - 200:
-        player.x += 5
+def process_key_input(player, keys):
+    # Player speed updaten op basis van input
+    if keys[pygame.K_RIGHT]:
+        player.speed += 0.5
+    if keys[pygame.K_LEFT]:
+        player.speed -= 0.3
+    
+    # Wrijving toevoegen zodat auto niet oneindig doorrolt
+    player.speed *= 0.98
 
 def main():
     pygame.init()
@@ -145,6 +173,7 @@ def main():
     start_screen = StartScreen()
     state = State()
     player = Player('images/first-car-concept.png')
+    player.initialize_position(state)  # Initiële positie 
     
     # Gameloop
     while True:
@@ -178,7 +207,8 @@ def main():
             
         elif current_state == 'playing':
             keys = pygame.key.get_pressed()
-            process_key_input(player, keys, 1024)
+            process_key_input(player, keys)
+            player.update(state)
             render_frame(srf, state, player)
         
         clock.tick(60)  # 60 FPS
