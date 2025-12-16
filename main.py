@@ -367,7 +367,7 @@ def main():
     upgrades = load_upgrades()
     current_level = 1
     state = State(current_level)
-    player = Player('images/first-car-concept.png')
+    player = Player('images/truck/first-car-concept.png')
     player.initialize_position(state)  # Initiële positie 
     
     # Gameloop
@@ -450,7 +450,7 @@ def main():
                 old_upgrades = player.purchased_upgrades.copy()  # Save upgrades
                 state = State(current_level)
                 state.money = old_money + (player.health * 5)  # Keep money + bonus
-                player = Player('images/first-car-concept.png')
+                player = Player('images/truck/first-car-concept.png')
                 player.purchased_upgrades = old_upgrades  # Restore upgrades
                 player.update_combined_image()  # Apply upgrades to image
                 # Reapply upgrade stats
@@ -464,7 +464,7 @@ def main():
                 current_level = 1
                 upgrades = load_upgrades()  # Reset upgrades
                 state = State(current_level)
-                player = Player('images/first-car-concept.png')
+                player = Player('images/truck/first-car-concept.png')
                 player.initialize_position(state)
         
         clock.tick(60)  # 60 FPS
