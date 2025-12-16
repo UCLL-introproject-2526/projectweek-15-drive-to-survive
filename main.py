@@ -1,7 +1,8 @@
 import pygame 
 import math
 from player import Player
-from zombie import normalZombie, bigZombie
+from zombie import Zombie, spawn_zombies
+from terrain import Terrain
 
 class Logo:
     def __init__(self, image_path, x, y, width=None, height=None):
@@ -102,33 +103,19 @@ class StartScreen:
 class State:
     def __init__(self):
         self.__background = Background('images/Background-image.png')
-        self.terrain_points = {}
-        self.TERRAIN_STEP = 10
+        self.terrain = Terrain()
+        self.zombies = spawn_zombies(1)
+        self.money = 0
 
-    def generate_height(self, x):
-        base = 768 - 140
-        return base + math.sin(x * 0.006) * 20 + math.sin(x * 0.02) * 5
-    
     def get_ground_height(self, x):
-        if x not in self.terrain_points:
-            self.terrain_points[x] = self.generate_height(x)
-        return self.terrain_points[x]
-    
-    def draw_ground(self, srf, cam_x):
-        GROUND = (110, 85, 55)
-        GROUND_DARK = (80, 60, 40)
-        pts = []
-        start = int(cam_x) - 400
-        for x in range(start, start + 1024 + 800, self.TERRAIN_STEP):
-            sx = x - cam_x + 1024//3
-            pts.append((sx, self.get_ground_height(x)))
-        pts += [(1024, 768), (0, 768)]
-        pygame.draw.polygon(srf, GROUND, pts)
-        pygame.draw.lines(srf, GROUND_DARK, False, pts[:-2], 3)
+        return self.terrain.get_ground_height(x)
 
     def render(self, srf, cam_x):
         self.__background.render(srf)
-        self.draw_ground(srf, cam_x)
+        self.terrain.draw_ground(srf, cam_x)
+        # Draw zombies
+        for zombie in self.zombies:
+            zombie.draw(srf, cam_x, self.terrain)
 
 def create_main_surface():
     screen_size = (1024, 768)
@@ -142,10 +129,11 @@ def render_frame(srf, state, player):
     clear_surface(srf)
     state.render(srf, player.world_x)
     player.render(srf, state)
+    player.draw_health_bar(srf)  # Draw health bar
     
-    # Display player.world_x rechtsboven
+    # Display player.world_x and money rechtsboven
     font = pygame.font.Font(None, 36)
-    text = font.render(f'Distance: {int(player.world_x)}', True, (255, 255, 255))
+    text = font.render(f'Distance: {int(player.world_x)}  Money: ${state.money}', True, (255, 255, 255))
     text_rect = text.get_rect(topright=(1024 - 10, 10))
     srf.blit(text, text_rect)
     
@@ -209,7 +197,22 @@ def main():
             keys = pygame.key.get_pressed()
             process_key_input(player, keys)
             player.update(state)
+            
+            # Update zombies en check collisions
+            for zombie in state.zombies:
+                money_earned = zombie.update(player, state.terrain)
+                state.money += money_earned
+            
             render_frame(srf, state, player)
+            
+            # Check game over condities
+            if player.world_x >= 10000 or not player.is_alive():
+                # Game over - Terug naar startscherm
+                current_state = 'start_screen'
+                # Reset game
+                state = State()
+                player = Player('images/first-car-concept.png')
+                player.initialize_position(state)
         
         clock.tick(60)  # 60 FPS
         

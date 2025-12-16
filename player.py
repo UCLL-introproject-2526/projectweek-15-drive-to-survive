@@ -9,7 +9,9 @@ class Player:
         self.vspeed = 0
         self.angle = 0
         self.air_angle = None
-        self.GRAVITY = 2.2
+        self.health = 100  # Player health
+        self.max_health = 100  # Maximum health
+        self.GRAVITY = 0.095
         self.FRICTION = 0.99
         self.AIR_FRICTION = 0.995
         self.__create_image(image)
@@ -44,14 +46,19 @@ class Player:
             # Op de grond - ga dan naar grond positie
             self.y = ground_y
             self.vspeed = 0
-            self.angle = -math.degrees(terrain_angle)
+            # Smooth transitie naar terrain angle
+            target_angle = -math.degrees(terrain_angle)
+            angle_diff = target_angle - self.angle
+            self.angle += angle_diff * 0.3  # Smooth interpolatie
             self.air_angle = None
             self.speed *= self.FRICTION
         else:
             # In de lucht
             if self.air_angle is None:
                 self.air_angle = self.angle
-            self.angle = self.air_angle
+            # Pas de angle aan gebaseerd op de bewegingsrichting (vspeed en speed)
+            if self.speed != 0:
+                self.angle = -math.degrees(math.atan2(self.vspeed, self.speed))
             self.speed *= self.AIR_FRICTION
         
         # Update de world positie gebaseerd op de snelheid
@@ -65,3 +72,29 @@ class Player:
         rotated_image = pygame.transform.rotate(self.__base_image, self.angle)
         rotated_rect = rotated_image.get_rect(center=self.rect.center)
         srf.blit(rotated_image, rotated_rect)
+    
+    def draw_health_bar(self, srf):
+        """Draw health bar on screen"""
+        bar_width = 200
+        bar_height = 20
+        x = 20
+        y = 50
+        
+        # Background (rood)
+        pygame.draw.rect(srf, (80, 0, 0), (x, y, bar_width, bar_height))
+        
+        # Foreground (health)
+        health_width = int((self.health / self.max_health) * bar_width)
+        pygame.draw.rect(srf, (200, 0, 0), (x, y, health_width, bar_height))
+        
+        # Border
+        pygame.draw.rect(srf, (0, 0, 0), (x, y, bar_width, bar_height), 2)
+    
+    def take_damage(self, damage):
+        """Reduce player health by damage amount"""
+        self.health -= damage
+        self.health = max(0, self.health)  # Don't go below 0
+    
+    def is_alive(self):
+        """Check if player is still alive"""
+        return self.health > 0
