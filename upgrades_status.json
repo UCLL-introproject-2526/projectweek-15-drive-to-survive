@@ -1,14 +1,10 @@
 {
-  "defauld": {
+  "default.Ramp": {
     "purchased": true,
     "equipped": false
   },
-  "Ramp": {
+  "default.Turret": {
     "purchased": true,
-    "equipped": true
-  },
-  "Turret": {
-    "purchased": true,
-    "equipped": true
+    "equipped": false
   }
 }
