@@ -76,9 +76,7 @@ class Player:
             # In de lucht
             if self.air_angle is None:
                 self.air_angle = self.angle
-            # Pas de angle aan gebaseerd op de bewegingsrichting (vspeed en speed)
-            if self.speed != 0:
-                self.angle = -math.degrees(math.atan2(self.vspeed, self.speed))
+            # Behoud de angle in de lucht
             self.speed *= self.AIR_FRICTION
         
         # Update de world positie gebaseerd op de snelheid
@@ -143,11 +141,27 @@ class Player:
         original = pygame.image.load(self.__original_image_path)
         original = pygame.transform.scale(original, (200, 200))
         
-        combined = original.copy()
-        # Apply each purchased upgrade's image
+        # Create a surface with per-pixel alpha
+        combined = pygame.Surface((200, 200), pygame.SRCALPHA)
+        combined.fill((0, 0, 0, 0))  # Clear with transparent background
+        
+        # First blit the base car
+        combined.blit(original, (0, 0))
+        
+        # Apply each purchased upgrade's image with alpha blending
         for upgrade in self.purchased_upgrades:
-            up_scaled = pygame.transform.scale(upgrade.image, (200, 200))
-            combined.blit(up_scaled, (0, 0))
+            # Check if this is the ramp upgrade and scale it differently
+            if "ramp" in upgrade.name.lower():
+                up_scaled = pygame.transform.scale(upgrade.image, (220, 200))
+                upgrade_rect = up_scaled.get_rect(center=(100, 100))
+
+            else:
+                up_scaled = pygame.transform.scale(upgrade.image, (200, 200))
+                upgrade_rect = up_scaled.get_rect(center=(100, 100))
+            
+            # Center the upgrade image
+            combined.blit(up_scaled, upgrade_rect)
+        
         self.__base_image = combined
         self.rect = self.__base_image.get_rect()
     
