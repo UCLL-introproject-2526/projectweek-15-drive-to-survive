@@ -58,6 +58,131 @@ bg_w = background_img.get_width()
 bg_h = background_img.get_height()
 
 # ==============================
+# Start Screen Classes
+# ==============================
+class Background:
+    def __init__(self, image_path):
+        try:
+            self.image = pygame.image.load(image_path).convert()
+            self.image = pygame.transform.scale(self.image, (WIDTH, HEIGHT))
+        except:
+            # Fallback background if image doesn't exist
+            self.image = pygame.Surface((WIDTH, HEIGHT))
+            self.image.fill((30, 30, 50))
+    
+    def render(self, surface):
+        surface.blit(self.image, (0, 0))
+
+class Logo:
+    def __init__(self, image_path, width, height, x, y):
+        try:
+            self.image = pygame.image.load(image_path).convert_alpha()
+            self.image = pygame.transform.scale(self.image, (width, height))
+            self.rect = self.image.get_rect(center=(x, y))
+        except:
+            # Fallback logo
+            self.image = pygame.Surface((width, height))
+            self.image.fill((100, 100, 200))
+            font = pygame.font.SysFont("arial", 48)
+            text = font.render("ZOMBIE CAR", True, WHITE)
+            text_rect = text.get_rect(center=(width//2, height//2))
+            self.image.blit(text, text_rect)
+            self.rect = self.image.get_rect(center=(x, y))
+    
+    def render(self, surface):
+        surface.blit(self.image, self.rect)
+
+class Button:
+    def __init__(self, x, y, width, height, text, color, hover_color, icon_path=None):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        self.color = color
+        self.hover_color = hover_color
+        self.current_color = color
+        self.hovered = False
+        
+        # Load icon if provided
+        self.icon = None
+        if icon_path:
+            try:
+                self.icon = pygame.image.load(icon_path).convert_alpha()
+                self.icon = pygame.transform.scale(self.icon, (40, 40))
+            except:
+                pass
+    
+    def update(self, mouse_pos):
+        self.hovered = self.rect.collidepoint(mouse_pos)
+        self.current_color = self.hover_color if self.hovered else self.color
+    
+    def is_clicked(self, mouse_pos, mouse_pressed):
+        return self.hovered and mouse_pressed
+    
+    def render(self, surface):
+        pygame.draw.rect(surface, self.current_color, self.rect, border_radius=10)
+        pygame.draw.rect(surface, WHITE, self.rect, 2, border_radius=10)
+        
+        if self.icon:
+            icon_rect = self.icon.get_rect(center=self.rect.center)
+            surface.blit(self.icon, icon_rect)
+        elif self.text:
+            text_surf = font.render(self.text, True, WHITE)
+            text_rect = text_surf.get_rect(center=self.rect.center)
+            surface.blit(text_surf, text_rect)
+
+class StartScreen:
+    def __init__(self):
+        # Use existing background image or create fallback
+        try:
+            bg_image = "assets/background/Background.png"
+            self.background = Background(bg_image)
+        except:
+            self.background = Background("")  # Will use fallback
+        
+        # Create logo - adjust position as needed
+        self.logo = Logo("", 450, 200, WIDTH//2, 150)
+        
+        # Create buttons
+        button_width = 250
+        button_height = 60
+        button_x = WIDTH//2 - button_width//2
+        
+        self.start_button = Button(button_x, 300, button_width, button_height, 
+                                  'Start Game', (50, 150, 50), (70, 200, 70))
+        self.credits_button = Button(button_x, 380, button_width, button_height, 
+                                     'Credits', (100, 100, 150), (150, 150, 200))
+        self.quit_button = Button(button_x, 460, button_width, button_height, 
+                                  'Quit', (150, 50, 50), (200, 70, 70))
+        
+        # Settings button in top right
+        self.settings_button = Button(WIDTH - 70, 20, 50, 50, '', 
+                                      (50, 50, 150), (70, 70, 200))
+    
+    def update(self, mouse_pos):
+        self.start_button.update(mouse_pos)
+        self.credits_button.update(mouse_pos)
+        self.settings_button.update(mouse_pos)
+        self.quit_button.update(mouse_pos)
+    
+    def handle_click(self, mouse_pos, mouse_pressed):
+        if self.start_button.is_clicked(mouse_pos, mouse_pressed):
+            return 'start_game'
+        elif self.credits_button.is_clicked(mouse_pos, mouse_pressed):
+            return 'credits'
+        elif self.settings_button.is_clicked(mouse_pos, mouse_pressed):
+            return 'settings'
+        elif self.quit_button.is_clicked(mouse_pos, mouse_pressed):
+            return 'quit'
+        return None
+    
+    def render(self):
+        self.background.render(screen)
+        self.logo.render(screen)
+        self.start_button.render(screen)
+        self.credits_button.render(screen)
+        self.quit_button.render(screen)
+        self.settings_button.render(screen)
+
+# ==============================
 # Classes
 # ==============================
 class Upgrade:
@@ -684,63 +809,218 @@ def reset_car():
     car.fuel = 100
     return car
 
-# Pre-load upgrades once at the start
-load_upgrades()
-
-car = reset_car()
-garage(car)
-zombies = spawn_zombies(current_level)
-
-running = True
-while running:
-    clock.tick(60)
-    keys = pygame.key.get_pressed()
-
-    draw_background(car.world_x)
-    car.update(keys)
+# ==============================
+# Game States
+# ==============================
+def main_game_loop():
+    """Main game loop after starting from garage"""
+    global money, distance, current_level, terrain_points
     
-    # Update distance based on car's travel (200 is start position)
-    distance = car.world_x - 200
+    car = reset_car()
+    zombies = spawn_zombies(current_level)
     
-    # Update active upgrades (like turret)
-    car.update_upgrades(keys, zombies)
+    running = True
+    while running:
+        clock.tick(60)
+        keys = pygame.key.get_pressed()
+
+        draw_background(car.world_x)
+        car.update(keys)
+        
+        # Update distance based on car's travel (200 is start position)
+        distance = car.world_x - 200
+        
+        # Update active upgrades (like turret)
+        car.update_upgrades(keys, zombies)
+        
+        draw_ground(car.world_x)
+        car.draw()
+        
+        # Draw upgrade effects (like bullets)
+        car.draw_upgrades(car.world_x)
+
+        for z in zombies:
+            z.update(car)
+            z.draw(car.world_x)
+
+        draw_health_bar(car)
+        
+        # Show shooting instruction if any upgrade has shooting capability
+        has_shooting = False
+        for upgrade_instance in car.upgrade_instances:
+            if hasattr(upgrade_instance, 'has_shooting') or hasattr(upgrade_instance, 'shoot'):
+                has_shooting = True
+                break
+        
+        if has_shooting:
+            ui = small_font.render(f"Distance: {int(distance)}  Fuel: {int(car.fuel)}  Money: {money}  [E] to shoot", True, BLACK)
+        else:
+            ui = small_font.render(f"Distance: {int(distance)}  Fuel: {int(car.fuel)}  Money: {money}", True, BLACK)
+        screen.blit(ui, (20, 20))
+
+        if distance >= 10000 or car.health <= 0 or car.fuel <= 0:
+            distance = 0
+            current_level += 1
+            terrain_points.clear()
+            car = reset_car()  # This will reapply all purchased upgrades
+            garage(car)
+            zombies = spawn_zombies(current_level)
+
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_ESCAPE:
+                    running = False  # Return to start screen
+
+        pygame.display.flip()
+
+def credits_screen():
+    """Display credits screen"""
+    running = True
+    while running:
+        clock.tick(60)
+        
+        # Fill background
+        screen.fill((30, 30, 50))
+        
+        # Credits text
+        title = font.render("Credits", True, WHITE)
+        screen.blit(title, (WIDTH//2 - title.get_width()//2, 50))
+        
+        credits_lines = [
+            "Zombie Car Game",
+            "",
+            "Programming: You!",
+            "Graphics: Various Sources",
+            "Sound Effects: ...",
+            "",
+            "Special Thanks:",
+            "Pygame Community",
+            "",
+            "Press ESC to return"
+        ]
+        
+        y_offset = 150
+        for line in credits_lines:
+            text = small_font.render(line, True, WHITE)
+            screen.blit(text, (WIDTH//2 - text.get_width()//2, y_offset))
+            y_offset += 40
+        
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_ESCAPE:
+                    running = False
+        
+        pygame.display.flip()
+
+def settings_screen():
+    """Display settings screen"""
+    running = True
+    while running:
+        clock.tick(60)
+        
+        # Fill background
+        screen.fill((30, 30, 50))
+        
+        # Settings text
+        title = font.render("Settings", True, WHITE)
+        screen.blit(title, (WIDTH//2 - title.get_width()//2, 50))
+        
+        settings_lines = [
+            "Settings are not implemented yet.",
+            "",
+            "Future features:",
+            "- Volume controls",
+            "- Graphics options",
+            "- Control customization",
+            "",
+            "Press ESC to return"
+        ]
+        
+        y_offset = 150
+        for line in settings_lines:
+            text = small_font.render(line, True, WHITE)
+            screen.blit(text, (WIDTH//2 - text.get_width()//2, y_offset))
+            y_offset += 40
+        
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_ESCAPE:
+                    running = False
+        
+        pygame.display.flip()
+
+# ==============================
+# Main Program
+# ==============================
+def main():
+    # Pre-load upgrades once at the start
+    load_upgrades()
     
-    draw_ground(car.world_x)
-    car.draw()
+    # Create start screen
+    start_screen = StartScreen()
     
-    # Draw upgrade effects (like bullets)
-    car.draw_upgrades(car.world_x)
-
-    for z in zombies:
-        z.update(car)
-        z.draw(car.world_x)
-
-    draw_health_bar(car)
+    # Game state
+    game_state = "start_screen"
     
-    # Show shooting instruction if any upgrade has shooting capability
-    has_shooting = False
-    for upgrade_instance in car.upgrade_instances:
-        if hasattr(upgrade_instance, 'has_shooting') or hasattr(upgrade_instance, 'shoot'):
-            has_shooting = True
-            break
+    running = True
+    while running:
+        mouse_pos = pygame.mouse.get_pos()
+        mouse_pressed = pygame.mouse.get_pressed()[0]  # Left mouse button
+        
+        # Handle events
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                running = False
+                break
+        
+        # Update based on game state
+        if game_state == "start_screen":
+            start_screen.update(mouse_pos)
+            action = start_screen.handle_click(mouse_pos, mouse_pressed)
+            
+            if action == 'start_game':
+                # Go to garage first
+                car = reset_car()
+                garage(car)
+                # Then start the main game
+                game_state = "main_game"
+            elif action == 'credits':
+                game_state = "credits"
+            elif action == 'settings':
+                game_state = "settings"
+            elif action == 'quit':
+                running = False
+            
+            # Render start screen
+            start_screen.render()
+        
+        elif game_state == "main_game":
+            main_game_loop()
+            # After main game ends (when player presses ESC), return to start screen
+            game_state = "start_screen"
+        
+        elif game_state == "credits":
+            credits_screen()
+            game_state = "start_screen"
+        
+        elif game_state == "settings":
+            settings_screen()
+            game_state = "start_screen"
+        
+        pygame.display.flip()
+        clock.tick(60)
     
-    if has_shooting:
-        ui = small_font.render(f"Distance: {int(distance)}  Fuel: {int(car.fuel)}  Money: {money}  [E] to shoot", True, BLACK)
-    else:
-        ui = small_font.render(f"Distance: {int(distance)}  Fuel: {int(car.fuel)}  Money: {money}", True, BLACK)
-    screen.blit(ui, (20, 20))
+    pygame.quit()
+    sys.exit()
 
-    if distance >= 10000 or car.health <= 0 or car.fuel <= 0:
-        distance = 0
-        current_level += 1
-        terrain_points.clear()
-        car = reset_car()  # This will reapply all purchased upgrades
-        garage(car)
-        zombies = spawn_zombies(current_level)
-
-    for e in pygame.event.get():
-        if e.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-
-    pygame.display.flip()
+if __name__ == "__main__":
+    main()
