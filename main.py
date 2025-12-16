@@ -1,5 +1,6 @@
 import pygame 
 import math
+import os
 from player import Player
 from zombie import Zombie, spawn_zombies
 from terrain import Terrain
@@ -68,14 +69,14 @@ class Background:
     
 class StartScreen:
     def __init__(self):
-        self.__background = Background('images/Background-image.png')
-        self.__logo = Logo('images/UI/logo.png', 112, 100, 800, 500)
+        self.__background = Background(os.path.join('images', 'Background-image.png'))
+        self.__logo = Logo(os.path.join('images', 'UI', 'logo.png'), 112, 100, 800, 500)
         
         # Buttons - horizontaal naast elkaar, lager op scherm
         self.__start_button = Button(162, 600, 200, 60, 'Start Game', (50, 150, 50), (70, 200, 70))
         self.__credits_button = Button(412, 600, 200, 60, 'Credits', (100, 100, 50), (150, 150, 70))
         self.__quit_button = Button(662, 600, 200, 60, 'Quit', (150, 50, 50), (200, 70, 70))
-        self.__settings_button = Button(954, 10, 60, 60, '', (50, 50, 150), (70, 70, 200), icon_path='images/ui/settings-icon.png')
+        self.__settings_button = Button(954, 10, 60, 60, '', (50, 50, 150), (70, 70, 200), icon_path=os.path.join('images', 'UI', 'settings-icon.png'))
         
     def update(self, mouse_pos):
         self.__start_button.update(mouse_pos)
@@ -105,7 +106,7 @@ class StartScreen:
 class GarageScreen:
     def __init__(self):
         try:
-            garage_bg_raw = pygame.image.load('images/Background-image-garage.png')
+            garage_bg_raw = pygame.image.load(os.path.join('images', 'Background-image-garage.png'))
             self.__background = pygame.transform.scale(garage_bg_raw, (1024, 768))
         except:
             self.__background = None
@@ -367,7 +368,7 @@ def main():
     upgrades = load_upgrades()
     current_level = 1
     state = State(current_level)
-    player = Player('images/first-car-concept.png')
+    player = Player(os.path.join('images', 'first-car-concept.png'))
     player.initialize_position(state)  # Initiële positie 
     
     # Gameloop
