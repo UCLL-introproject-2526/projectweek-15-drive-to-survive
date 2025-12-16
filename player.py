@@ -46,7 +46,7 @@ class Player:
             self.speed -= self.base_speed * self.speed_multiplier * 0.8
             
 
-        if self.speed != 0:
+        if self.speed > 0.5 or self.speed < -0.5:
             self.update_fuel()
         
         # De huidige ground height krijgen
@@ -76,6 +76,7 @@ class Player:
             # In de lucht
             if self.air_angle is None:
                 self.air_angle = self.angle
+            self.angle += self.speed * -0.03
             # Behoud de angle in de lucht
             self.speed *= self.AIR_FRICTION
         
@@ -144,7 +145,7 @@ class Player:
             
             # Check if this is the ramp upgrade and scale it differently
             if "ramp" in latest_upgrade.name.lower():
-                up_scaled = pygame.transform.scale(latest_upgrade.image, (220, 200))
+                up_scaled = pygame.transform.scale(latest_upgrade.image, (200, 200))
             else:
                 up_scaled = pygame.transform.scale(latest_upgrade.image, (200, 200))
             

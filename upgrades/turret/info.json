@@ -1,0 +1,12 @@
+{
+  "name": "Turret",
+  "description": "Adds a turret to the car, allowing it to shoot zombies from a distance.",
+
+  "car_damage": 5,
+  "damage_reduction": 0,
+  "price": 500,
+
+  "author": "Bram",
+  "version": "1.0.0",
+  "dependencies": []
+}
