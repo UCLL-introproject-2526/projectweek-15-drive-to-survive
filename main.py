@@ -364,7 +364,7 @@ def main():
     current_state = 'start_screen'  # 'start_screen', 'garage', 'credits', of 'playing'
     start_screen = StartScreen()
     garage_screen = GarageScreen()
-    credits_screen = None  # Initialiseren wanneer nodig
+    credits_screen = CreditsScreen()
     upgrades = load_upgrades()
     current_level = 1
     state = State(current_level)
@@ -418,9 +418,6 @@ def main():
             pygame.display.flip()
         
         elif current_state == 'credits':
-            if credits_screen is None:
-                credits_screen = CreditsScreen()
-            
             credits_screen.update(mouse_pos)
             action = credits_screen.handle_click(mouse_pos, mouse_pressed)
             

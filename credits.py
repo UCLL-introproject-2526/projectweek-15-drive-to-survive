@@ -45,8 +45,8 @@ class CreditsScreen:
     def update(self, mouse_pos):
         self.__back_button.update(mouse_pos)
     
-    def handle_click(self, mouse_pos, mouse_pressed):
-        if self.__back_button.is_clicked(mouse_pos, mouse_pressed):
+    def handle_click(self, mouse_pos, mouse_clicked):
+        if self.__back_button.is_clicked(mouse_pos, mouse_clicked):
             return 'back_to_menu'
         return None
     
