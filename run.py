@@ -246,25 +246,50 @@ class CarType:
             self.is_default = data.get("is_default", "False").lower() == "true"
             self.author = data.get("author", "")
             self.version = data.get("version", "1.0.0")
+            # Laad de base car image uit de info.json
+            self.base_image_path = data.get("base_image", "image.png")
         else:
             self.display_name = self.name.capitalize()
             self.is_default = False
             self.author = ""
             self.version = "1.0.0"
+            self.base_image_path = "image.png"
         
         # Load car image
-        img_file = os.path.join(folder, "image.png")
+        img_file = os.path.join(folder, self.base_image_path)
         if os.path.exists(img_file):
             self.image = pygame.image.load(img_file).convert_alpha()
             self.image_small = pygame.transform.scale(self.image, (120, 80))
         else:
             # Fallback image
             self.image = pygame.Surface((200, 100), pygame.SRCALPHA)
-            pygame.draw.rect(self.image, (100, 100, 200), (0, 0, 200, 100))
-            text = small_font.render(self.display_name, True, WHITE)
-            text_rect = text.get_rect(center=(100, 50))
-            self.image.blit(text, text_rect)
+            pygame.draw.rect(self.image, (100, 100, 200), (0, 40, 200, 60))
+            pygame.draw.rect(self.image, (100, 100, 100), (40, 20, 120, 40))
+            pygame.draw.circle(self.image, BLACK, (50, 100), 20)
+            pygame.draw.circle(self.image, BLACK, (150, 100), 20)
             self.image_small = pygame.transform.scale(self.image, (120, 80))
+        
+        # Laad upgrades specifiek voor deze auto
+        self.load_car_upgrades()
+
+    def load_car_upgrades(self):
+        """Laad upgrades voor deze specifieke auto"""
+        self.upgrades = []
+        info_file = os.path.join(self.folder, "info.json")
+        if os.path.exists(info_file):
+            with open(info_file, "r") as f:
+                data = json.load(f)
+            
+            if "upgrades" in data:
+                for upgrade_name, upgrade_data in data["upgrades"].items():
+                    # Zoek naar upgrade folder
+                    upgrade_folder = os.path.join(self.folder, upgrade_name)
+                    if os.path.exists(upgrade_folder):
+                        try:
+                            upgrade = Upgrade(upgrade_folder, upgrade_name)
+                            self.upgrades.append(upgrade)
+                        except Exception as e:
+                            print(f"Error loading upgrade {upgrade_name} for car {self.name}: {e}")
 
 # Global dictionary to store all loaded car types
 ALL_CAR_TYPES = {}
@@ -553,26 +578,9 @@ class Car:
         self.speed_multiplier = 1.0
         self.fuel_consumption_rate = 0.08  # Slightly increased for better visual feedback
 
-        # Load the base car image from current car type
-        current_car = get_current_car_type()
-        if current_car:
-            print(f"Creating car with type: {current_car.name}")
-            self.base_image = current_car.image.copy()
-        else:
-            print("Warning: No car type found, using fallback")
-            # Fallback to default car image
-            try:
-                img = pygame.image.load("assets/car/car.png").convert_alpha()
-                self.base_image = img
-            except:
-                # Create a simple fallback car
-                self.base_image = pygame.Surface((200, 100), pygame.SRCALPHA)
-                pygame.draw.rect(self.base_image, (200, 50, 50), (0, 40, 200, 60))
-                pygame.draw.rect(self.base_image, (100, 100, 100), (40, 20, 120, 40))
-                pygame.draw.circle(self.base_image, BLACK, (50, 100), 20)
-                pygame.draw.circle(self.base_image, BLACK, (150, 100), 20)
+        # Laad de auto basisafbeelding opnieuw bij elke creatie
+        self.reload_car_image()
         
-        self.image = pygame.transform.scale(self.base_image, (int(self.base_image.get_width()*0.2), int(self.base_image.get_height()*0.2)))
         self.rect = self.image.get_rect()
         self.y = get_ground_height(self.world_x) - self.rect.height
         self.upgrades_images = []  # Store tuples of (image, z_index, upgrade_name) for purchased upgrades
@@ -582,10 +590,41 @@ class Car:
         if apply_upgrades_now:
             self.apply_equipped_upgrades()
 
+    def reload_car_image(self):
+        """Herlaad de basis auto afbeelding opnieuw"""
+        current_car = get_current_car_type()
+        if current_car:
+            print(f"Reloading car image for: {current_car.name}")
+            self.base_image = current_car.image.copy()
+            self.image = pygame.transform.scale(self.base_image, 
+                                              (int(self.base_image.get_width()*0.2), 
+                                               int(self.base_image.get_height()*0.2)))
+        else:
+            print("Warning: No car type found, using fallback")
+            # Fallback to default car image
+            try:
+                img = pygame.image.load("assets/car/car.png").convert_alpha()
+                self.base_image = img
+                self.image = pygame.transform.scale(self.base_image, 
+                                                  (int(self.base_image.get_width()*0.2), 
+                                                   int(self.base_image.get_height()*0.2)))
+            except:
+                # Create a simple fallback car
+                self.base_image = pygame.Surface((200, 100), pygame.SRCALPHA)
+                pygame.draw.rect(self.base_image, (200, 50, 50), (0, 40, 200, 60))
+                pygame.draw.rect(self.base_image, (100, 100, 100), (40, 20, 120, 40))
+                pygame.draw.circle(self.base_image, BLACK, (50, 100), 20)
+                pygame.draw.circle(self.base_image, BLACK, (150, 100), 20)
+                self.image = pygame.transform.scale(self.base_image, (int(self.base_image.get_width()*0.2), 
+                                                                     int(self.base_image.get_height()*0.2)))
+
     def apply_equipped_upgrades(self):
         """Apply all upgrades that are equipped"""
         # Make sure upgrades are loaded
         upgrades = load_upgrades()
+        
+        # Herlaad eerst de basis auto afbeelding
+        self.reload_car_image()
         
         # Get only equipped upgrades
         equipped_upgrades = [upgrade for upgrade in upgrades if upgrade.equipped]
@@ -749,13 +788,20 @@ class Car:
                 upgrade_instance.draw(cam_x)
 
     def update_combined_image(self):
-        scaled_base = pygame.transform.scale(self.base_image, (int(self.base_image.get_width()*0.2), int(self.base_image.get_height()*0.2)))
+        """Update de gecombineerde auto afbeelding met alle upgrades"""
+        # Zorg dat we de juiste basis afbeelding hebben
+        scaled_base = pygame.transform.scale(self.base_image, 
+                                           (int(self.base_image.get_width()*0.2), 
+                                            int(self.base_image.get_height()*0.2)))
         combined = scaled_base.copy()
         
         # Draw upgrades in order of z-index (lowest first, highest last)
         for upgrade_data in self.upgrades_images:
             up_img = upgrade_data['image']
-            up_scaled = pygame.transform.scale(up_img, (int(up_img.get_width()*0.2), int(up_img.get_height()*0.2)))
+            # Schaal de upgrade afbeelding naar dezelfde grootte als de auto
+            up_scaled = pygame.transform.scale(up_img, 
+                                             (int(up_img.get_width()*0.2), 
+                                              int(up_img.get_height()*0.2)))
             combined.blit(up_scaled, (0, 0))
         
         self.image = combined
@@ -994,6 +1040,7 @@ def garage(car):
                 y_offset += 70
 
         # Car preview at bottom with arrows
+        # Gebruik de huidige car image (met eventuele upgrades)
         car_display_image = pygame.transform.scale(car.image, (int(car.image.get_width()*2.8), int(car.image.get_height()*2.8)))
         car_display_rect = car_display_image.get_rect(midbottom=(car_display_x, car_display_y + 60))
         screen.blit(car_display_image, car_display_rect)
@@ -1031,7 +1078,7 @@ def garage(car):
             
             screen.blit(msg, (popup_rect.centerx - msg.get_width()//2, popup_rect.y + 20))
 
-            # Preview image in popup
+            # Preview image in popup - gebruik de huidige car als basis
             temp_image = car.base_image.copy()
             
             # Get all currently equipped upgrades
@@ -1112,7 +1159,7 @@ def garage(car):
                         current_index = (current_index - 1) % len(car_types_list)
                         current_car_type = car_types_list[current_index].name.lower()
                         print(f"Selected car: {current_car_type}")
-                        # Reset car with new selection
+                        # Reset car with new selection - gebruik de nieuwe auto
                         car.__init__(apply_upgrades_now=False)
                         # Load upgrades for new car
                         load_upgrades()
@@ -1125,7 +1172,7 @@ def garage(car):
                         current_index = (current_index + 1) % len(car_types_list)
                         current_car_type = car_types_list[current_index].name.lower()
                         print(f"Selected car: {current_car_type}")
-                        # Reset car with new selection
+                        # Reset car with new selection - gebruik de nieuwe auto
                         car.__init__(apply_upgrades_now=False)
                         # Load upgrades for new car
                         load_upgrades()

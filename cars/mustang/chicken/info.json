@@ -1,0 +1,15 @@
+{
+  "name": "chicken",
+  "description": "ads a chicken",
+
+  "z-index": 1,
+  "car_damage": 0,
+  "damage_reduction": 10,
+  "speed_increase": 100,
+  "price": 100,
+  "script": "True",
+
+  "author": "Victor",
+  "version": "1.0.0",
+  "dependencies": []
+}
