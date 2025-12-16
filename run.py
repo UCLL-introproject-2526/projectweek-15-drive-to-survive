@@ -30,6 +30,8 @@ BUTTON_HOVER = (255, 100, 80)
 HEALTH_BG = (80, 0, 0)
 HEALTH_FG = (200, 0, 0)
 UPGRADE_BG = (50, 50, 50)
+EQUIPPED_COLOR = (50, 150, 50)  # Green for equipped
+PURCHASED_COLOR = (100, 100, 200)  # Blue for purchased but not equipped
 
 ZOMBIE_COLORS = [(70,170,90),(170,70,70),(70,70,170),(170,170,0)]
 
@@ -204,46 +206,48 @@ class Upgrade:
         self.image_small = pygame.transform.scale(self.image, (80, 60))
         self.script_instance = None
         
-        # Check if this upgrade was purchased before
-        self.purchased = self.check_purchased_status()
+        # Track purchased and equipped status separately
+        self.purchased = False
+        self.equipped = False
+        self.check_purchased_status()
 
     def check_purchased_status(self):
         """Check if this upgrade was purchased in a previous session"""
         try:
-            if os.path.exists("purchased_upgrades.json"):
-                with open("purchased_upgrades.json", "r") as f:
-                    purchased_data = json.load(f)
-                    # Return True if this upgrade name is in the purchased list
-                    return self.name in purchased_data
+            if os.path.exists("upgrades_status.json"):
+                with open("upgrades_status.json", "r") as f:
+                    status_data = json.load(f)
+                    if self.name in status_data:
+                        self.purchased = status_data[self.name].get("purchased", False)
+                        self.equipped = status_data[self.name].get("equipped", False)
         except (json.JSONDecodeError, IOError):
-            # If file doesn't exist or is corrupted, return False
+            # If file doesn't exist or is corrupted
             pass
-        return False
 
-    def save_purchased_status(self):
-        """Save the purchased status to a file"""
+    def save_status(self):
+        """Save the purchased and equipped status to a file"""
         try:
             # Read existing data
-            if os.path.exists("purchased_upgrades.json"):
+            if os.path.exists("upgrades_status.json"):
                 try:
-                    with open("purchased_upgrades.json", "r") as f:
-                        purchased_data = json.load(f)
+                    with open("upgrades_status.json", "r") as f:
+                        status_data = json.load(f)
                 except (json.JSONDecodeError, IOError):
-                    purchased_data = []
+                    status_data = {}
             else:
-                purchased_data = []
+                status_data = {}
             
-            # Update the list
-            if self.purchased and self.name not in purchased_data:
-                purchased_data.append(self.name)
-            elif not self.purchased and self.name in purchased_data:
-                purchased_data.remove(self.name)
+            # Update the status for this upgrade
+            status_data[self.name] = {
+                "purchased": self.purchased,
+                "equipped": self.equipped
+            }
             
             # Save back to file
-            with open("purchased_upgrades.json", "w") as f:
-                json.dump(purchased_data, f, indent=2)
+            with open("upgrades_status.json", "w") as f:
+                json.dump(status_data, f, indent=2)
         except Exception as e:
-            print(f"Error saving purchased status: {e}")
+            print(f"Error saving upgrade status: {e}")
 
 # Global dictionary to store all loaded upgrades by name
 ALL_UPGRADES = {}
@@ -270,18 +274,20 @@ def load_upgrades():
     
     return upgrades_list
 
-def save_all_purchased_upgrades():
-    """Save all purchased upgrades to file"""
+def save_all_upgrades_status():
+    """Save all upgrades status to file"""
     try:
-        purchased_names = []
+        status_data = {}
         for upgrade_name, upgrade in ALL_UPGRADES.items():
-            if upgrade.purchased:
-                purchased_names.append(upgrade_name)
+            status_data[upgrade.name] = {
+                "purchased": upgrade.purchased,
+                "equipped": upgrade.equipped
+            }
         
-        with open("purchased_upgrades.json", "w") as f:
-            json.dump(purchased_names, f, indent=2)
+        with open("upgrades_status.json", "w") as f:
+            json.dump(status_data, f, indent=2)
     except Exception as e:
-        print(f"Error saving all purchased upgrades: {e}")
+        print(f"Error saving all upgrades status: {e}")
 
 def get_upgrade_by_name(name):
     """Get an upgrade by its name from the global dictionary"""
@@ -306,19 +312,22 @@ class Car:
         self.image = pygame.transform.scale(img, (int(img.get_width()*0.2), int(img.get_height()*0.2)))
         self.rect = self.image.get_rect()
         self.y = get_ground_height(self.world_x) - self.rect.height
-        self.upgrades_images = []  # Store tuples of (image, z_index) for purchased upgrades
+        self.upgrades_images = []  # Store tuples of (image, z_index, upgrade_name) for purchased upgrades
         self.upgrade_instances = []  # Store upgrade script instances
         
-        # Apply persistent upgrades when car is created
-        self.apply_persistent_upgrades()
+        # Apply equipped upgrades when car is created
+        self.apply_equipped_upgrades()
 
-    def apply_persistent_upgrades(self):
-        """Apply all upgrades that were purchased previously"""
+    def apply_equipped_upgrades(self):
+        """Apply all upgrades that are equipped"""
         # Make sure upgrades are loaded
         upgrades = load_upgrades()
         
-        # Sort upgrades by z-index before applying
-        sorted_upgrades = sorted(upgrades, key=lambda x: x.z_index)
+        # Get only equipped upgrades
+        equipped_upgrades = [upgrade for upgrade in upgrades if upgrade.equipped]
+        
+        # Sort equipped upgrades by z-index (lowest first)
+        equipped_upgrades.sort(key=lambda x: x.z_index)
         
         # Reset stats first
         self.base_damage = 10
@@ -327,98 +336,142 @@ class Car:
         self.upgrades_images = []
         self.upgrade_instances = []
         
-        for upgrade in sorted_upgrades:
-            if upgrade.purchased:
-                print(f"Applying purchased upgrade: {upgrade.name}")  # Debug
-                # Apply the upgrade stats
-                self.base_damage += upgrade.car_damage
-                self.damage_reduction += upgrade.damage_reduction
-                self.speed_multiplier += upgrade.speed_increase
-                # Store with z-index
-                self.upgrades_images.append((upgrade.image, upgrade.z_index))
-                
-                # Load script if it has one
-                if upgrade.has_script:
-                    try:
-                        script_path = os.path.join(upgrade.folder, "script.py")
-                        if os.path.exists(script_path):
-                            spec = importlib.util.spec_from_file_location("upgrade_script", script_path)
-                            module = importlib.util.module_from_spec(spec)
-                            
-                            module.WIDTH = WIDTH
-                            module.HEIGHT = HEIGHT
-                            module.get_ground_height = get_ground_height
-                            module.money_ref = lambda: money
-                            module.screen = screen
-                            
-                            spec.loader.exec_module(module)
-                            
-                            upgrade_class_name = f"{upgrade.name.replace(' ', '')}Upgrade"
-                            if hasattr(module, upgrade_class_name):
-                                UpgradeClass = getattr(module, upgrade_class_name)
-                                instance = UpgradeClass(self)
-                                self.upgrade_instances.append(instance)
-                                upgrade.script_instance = instance
-                            elif hasattr(module, "UpgradeScript"):
-                                instance = module.UpgradeScript(self)
-                                self.upgrade_instances.append(instance)
-                                upgrade.script_instance = instance
-                    except Exception as e:
-                        print(f"Error loading upgrade script for {upgrade.name}: {e}")
+        print(f"Applying {len(equipped_upgrades)} equipped upgrades in order:")  # Debug
+        for upgrade in equipped_upgrades:
+            print(f"  - {upgrade.name} (z-index: {upgrade.z_index})")  # Debug
+            
+            # Apply the upgrade stats
+            self.base_damage += upgrade.car_damage
+            self.damage_reduction += upgrade.damage_reduction
+            self.speed_multiplier += upgrade.speed_increase
+            
+            # Store with z-index and name for reference
+            self.upgrades_images.append({
+                'image': upgrade.image,
+                'z_index': upgrade.z_index,
+                'name': upgrade.name
+            })
+            
+            # Load script if it has one
+            if upgrade.has_script:
+                try:
+                    script_path = os.path.join(upgrade.folder, "script.py")
+                    if os.path.exists(script_path):
+                        spec = importlib.util.spec_from_file_location("upgrade_script", script_path)
+                        module = importlib.util.module_from_spec(spec)
+                        
+                        module.WIDTH = WIDTH
+                        module.HEIGHT = HEIGHT
+                        module.get_ground_height = get_ground_height
+                        module.money_ref = lambda: money
+                        module.screen = screen
+                        
+                        spec.loader.exec_module(module)
+                        
+                        upgrade_class_name = f"{upgrade.name.replace(' ', '')}Upgrade"
+                        if hasattr(module, upgrade_class_name):
+                            UpgradeClass = getattr(module, upgrade_class_name)
+                            instance = UpgradeClass(self)
+                            self.upgrade_instances.append(instance)
+                            upgrade.script_instance = instance
+                        elif hasattr(module, "UpgradeScript"):
+                            instance = module.UpgradeScript(self)
+                            self.upgrade_instances.append(instance)
+                            upgrade.script_instance = instance
+                except Exception as e:
+                    print(f"Error loading upgrade script for {upgrade.name}: {e}")
+        
+        # Sort upgrades_images by z-index to ensure correct drawing order
+        self.upgrades_images.sort(key=lambda x: x['z_index'])
         
         # Update car image with all upgrades
         self.update_combined_image()
 
-    def apply_upgrade(self, upgrade):
-        print(f"Purchasing upgrade: {upgrade.name}")  # Debug
-        self.base_damage += upgrade.car_damage
-        self.damage_reduction += upgrade.damage_reduction
-        self.speed_multiplier += upgrade.speed_increase
+    def apply_upgrade(self, upgrade, equip=True):
+        """Apply or remove an upgrade from the car"""
+        if equip:
+            print(f"Equipping upgrade: {upgrade.name} (z-index: {upgrade.z_index})")  # Debug
+            
+            # Apply the upgrade stats
+            self.base_damage += upgrade.car_damage
+            self.damage_reduction += upgrade.damage_reduction
+            self.speed_multiplier += upgrade.speed_increase
+            
+            # Store upgrade with its z-index and name
+            self.upgrades_images.append({
+                'image': upgrade.image,
+                'z_index': upgrade.z_index,
+                'name': upgrade.name
+            })
+            
+            # Sort upgrades by z-index to maintain correct drawing order
+            self.upgrades_images.sort(key=lambda x: x['z_index'])
+            
+            # Load and initialize upgrade script if it has one
+            if upgrade.has_script:
+                try:
+                    script_path = os.path.join(upgrade.folder, "script.py")
+                    if os.path.exists(script_path):
+                        # Dynamically import the script
+                        spec = importlib.util.spec_from_file_location("upgrade_script", script_path)
+                        module = importlib.util.module_from_spec(spec)
+                        
+                        # Inject necessary globals into the module
+                        module.WIDTH = WIDTH
+                        module.HEIGHT = HEIGHT
+                        module.get_ground_height = get_ground_height
+                        module.money_ref = lambda: money  # Reference to money variable
+                        module.screen = screen
+                        
+                        spec.loader.exec_module(module)
+                        
+                        # Look for a class named after the upgrade
+                        upgrade_class_name = f"{upgrade.name.replace(' ', '')}Upgrade"
+                        if hasattr(module, upgrade_class_name):
+                            UpgradeClass = getattr(module, upgrade_class_name)
+                            instance = UpgradeClass(self)
+                            self.upgrade_instances.append(instance)
+                            upgrade.script_instance = instance
+                        # Also check for generic "UpgradeScript" class
+                        elif hasattr(module, "UpgradeScript"):
+                            instance = module.UpgradeScript(self)
+                            self.upgrade_instances.append(instance)
+                            upgrade.script_instance = instance
+                except Exception as e:
+                    print(f"Error loading upgrade script for {upgrade.name}: {e}")
+        else:
+            print(f"Unequipping upgrade: {upgrade.name}")  # Debug
+            
+            # Remove the upgrade stats
+            self.base_damage -= upgrade.car_damage
+            self.damage_reduction -= upgrade.damage_reduction
+            self.speed_multiplier -= upgrade.speed_increase
+            
+            # Remove upgrade from images list
+            self.upgrades_images = [up for up in self.upgrades_images if up['name'] != upgrade.name]
+            
+            # Remove upgrade script instance if it has one
+            if upgrade.has_script and upgrade.script_instance:
+                if upgrade.script_instance in self.upgrade_instances:
+                    self.upgrade_instances.remove(upgrade.script_instance)
+                upgrade.script_instance = None
         
-        # Store upgrade image with its z-index
-        self.upgrades_images.append((upgrade.image, upgrade.z_index))
+        # Update equipped status
+        upgrade.equipped = equip
+        save_all_upgrades_status()
         
-        # Sort upgrades by z-index
-        self.upgrades_images.sort(key=lambda x: x[1])
-        
-        # Mark upgrade as purchased globally
-        upgrade.purchased = True
-        save_all_purchased_upgrades()  # Save ALL upgrades to file
-        
-        # Load and initialize upgrade script if it has one
-        if upgrade.has_script:
-            try:
-                script_path = os.path.join(upgrade.folder, "script.py")
-                if os.path.exists(script_path):
-                    # Dynamically import the script
-                    spec = importlib.util.spec_from_file_location("upgrade_script", script_path)
-                    module = importlib.util.module_from_spec(spec)
-                    
-                    # Inject necessary globals into the module
-                    module.WIDTH = WIDTH
-                    module.HEIGHT = HEIGHT
-                    module.get_ground_height = get_ground_height
-                    module.money_ref = lambda: money  # Reference to money variable
-                    module.screen = screen
-                    
-                    spec.loader.exec_module(module)
-                    
-                    # Look for a class named after the upgrade
-                    upgrade_class_name = f"{upgrade.name.replace(' ', '')}Upgrade"
-                    if hasattr(module, upgrade_class_name):
-                        UpgradeClass = getattr(module, upgrade_class_name)
-                        instance = UpgradeClass(self)
-                        self.upgrade_instances.append(instance)
-                        upgrade.script_instance = instance
-                    # Also check for generic "UpgradeScript" class
-                    elif hasattr(module, "UpgradeScript"):
-                        instance = module.UpgradeScript(self)
-                        self.upgrade_instances.append(instance)
-                        upgrade.script_instance = instance
-            except Exception as e:
-                print(f"Error loading upgrade script for {upgrade.name}: {e}")
-        
+        # Update car image
         self.update_combined_image()
+
+    def purchase_upgrade(self, upgrade):
+        """Purchase an upgrade for the first time"""
+        print(f"Purchasing upgrade: {upgrade.name}")  # Debug
+        upgrade.purchased = True
+        upgrade.equipped = True  # Auto-equip when purchased
+        save_all_upgrades_status()
+        
+        # Now apply the upgrade
+        self.apply_upgrade(upgrade, equip=True)
 
     def update_upgrades(self, keys, zombies):
         """Update all active upgrade scripts"""
@@ -437,7 +490,8 @@ class Car:
         combined = scaled_base.copy()
         
         # Draw upgrades in order of z-index (lowest first, highest last)
-        for up_img, z_index in self.upgrades_images:
+        for upgrade_data in self.upgrades_images:
+            up_img = upgrade_data['image']
             up_scaled = pygame.transform.scale(up_img, (int(up_img.get_width()*0.2), int(up_img.get_height()*0.2)))
             combined.blit(up_scaled, (0, 0))
         
@@ -541,6 +595,7 @@ def garage(car):
     scroll_speed = 20
     confirmation_active = False
     confirmation_upgrade = None
+    confirmation_action = None  # 'purchase' or 'toggle_equip'
 
     while running:
         clock.tick(60)
@@ -561,14 +616,17 @@ def garage(car):
         y_offset = 0
         for upgrade in upgrades:
             item_rect = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset + scroll_y, 230, 60)
-            # Different color for purchased upgrades
-            if upgrade.purchased:
-                pygame.draw.rect(screen, (50, 150, 50), item_rect)  # Green for purchased
+            
+            # Different colors based on status
+            if upgrade.equipped:
+                pygame.draw.rect(screen, EQUIPPED_COLOR, item_rect)  # Green for equipped
+            elif upgrade.purchased:
+                pygame.draw.rect(screen, PURCHASED_COLOR, item_rect)  # Blue for purchased but not equipped
             else:
-                pygame.draw.rect(screen, (80,80,80), item_rect)
+                pygame.draw.rect(screen, (80,80,80), item_rect)  # Gray for not purchased
                 
             if item_rect.collidepoint(pygame.mouse.get_pos()):
-                pygame.draw.rect(screen, (120,120,120), item_rect)
+                pygame.draw.rect(screen, (120,120,120), item_rect, 2)
 
             # Align bottom of image to bottom of the button
             img = upgrade.image_small
@@ -576,9 +634,12 @@ def garage(car):
             img_y = item_rect.bottom - img.get_height()-15
             screen.blit(img, (img_x, img_y))
 
-            # Gray out if not enough money or already purchased
-            if upgrade.purchased:
-                text_color = (200, 200, 200)
+            # Text based on status
+            if upgrade.equipped:
+                text_color = (200, 255, 200)
+                status = ""
+            elif upgrade.purchased:
+                text_color = (200, 200, 255)
                 status = ""
             elif money >= upgrade.price:
                 text_color = WHITE
@@ -607,30 +668,41 @@ def garage(car):
             popup_rect = pygame.Rect(WIDTH//2 - 150, HEIGHT//2 - 120, 300, 240)
             pygame.draw.rect(screen, (60,60,60), popup_rect)
             pygame.draw.rect(screen, WHITE, popup_rect, 2)
-            msg = small_font.render(f"Purchase {confirmation_upgrade.name} for ${confirmation_upgrade.price}?", True, WHITE)
+            
+            if confirmation_action == 'purchase':
+                msg = small_font.render(f"Purchase {confirmation_upgrade.name} for ${confirmation_upgrade.price}?", True, WHITE)
+            elif confirmation_action == 'toggle_equip':
+                if confirmation_upgrade.equipped:
+                    msg = small_font.render(f"Unequip {confirmation_upgrade.name}?", True, WHITE)
+                else:
+                    msg = small_font.render(f"Equip {confirmation_upgrade.name}?", True, WHITE)
+            
             screen.blit(msg, (popup_rect.centerx - msg.get_width()//2, popup_rect.y + 20))
 
             # Preview image in popup
             temp_image = car.base_image.copy()
             
-            # Get all current upgrades sorted by z-index
-            current_upgrades = []
-            for up_img, z_index in car.upgrades_images:
+            # Get all currently equipped upgrades
+            current_equipped = []
+            for upgrade_data in car.upgrades_images:
                 # Find the upgrade object for this image
                 for up in upgrades:
-                    if up.image is up_img:
-                        current_upgrades.append((up_img, z_index))
+                    if up.name == upgrade_data['name']:
+                        current_equipped.append((up.image, up.z_index))
                         break
             
-            # Add the new upgrade for preview
+            # Add or remove the upgrade for preview based on action
             if confirmation_upgrade:
-                current_upgrades.append((confirmation_upgrade.image, confirmation_upgrade.z_index))
+                if confirmation_action == 'purchase' or (confirmation_action == 'toggle_equip' and not confirmation_upgrade.equipped):
+                    # Adding the upgrade
+                    current_equipped.append((confirmation_upgrade.image, confirmation_upgrade.z_index))
+                # If unequipping, don't add it to the preview
             
             # Sort by z-index
-            current_upgrades.sort(key=lambda x: x[1])
+            current_equipped.sort(key=lambda x: x[1])
             
             # Draw all upgrades in order
-            for up_img, z_index in current_upgrades:
+            for up_img, z_index in current_equipped:
                 up_scaled = pygame.transform.scale(up_img, (int(up_img.get_width()*0.2), int(up_img.get_height()*0.2)))
                 temp_image.blit(up_scaled, (0,0))
             
@@ -657,15 +729,23 @@ def garage(car):
             elif e.type == pygame.MOUSEBUTTONDOWN:
                 if confirmation_active:
                     if btn_yes.collidepoint(e.pos):
-                        if money >= confirmation_upgrade.price and not confirmation_upgrade.purchased:
-                            money -= confirmation_upgrade.price
-                            confirmation_upgrade.purchased = True
-                            car.apply_upgrade(confirmation_upgrade)
+                        if confirmation_action == 'purchase':
+                            if money >= confirmation_upgrade.price and not confirmation_upgrade.purchased:
+                                money -= confirmation_upgrade.price
+                                car.purchase_upgrade(confirmation_upgrade)
+                        elif confirmation_action == 'toggle_equip':
+                            # Toggle equip/unequip
+                            if confirmation_upgrade.equipped:
+                                car.apply_upgrade(confirmation_upgrade, equip=False)
+                            else:
+                                car.apply_upgrade(confirmation_upgrade, equip=True)
                         confirmation_active = False
                         confirmation_upgrade = None
+                        confirmation_action = None
                     elif btn_no.collidepoint(e.pos):
                         confirmation_active = False
                         confirmation_upgrade = None
+                        confirmation_action = None
                 else:
                     if btn_next.collidepoint(e.pos):
                         running = False
@@ -673,10 +753,18 @@ def garage(car):
                     y_offset_check = 0
                     for upgrade in upgrades:
                         item_rect_check = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset_check + scroll_y, 230, 60)
-                        if item_rect_check.collidepoint(e.pos) and not upgrade.purchased:
-                            if money >= upgrade.price:
+                        if item_rect_check.collidepoint(e.pos):
+                            if not upgrade.purchased:
+                                # Not purchased yet - show purchase confirmation
+                                if money >= upgrade.price:
+                                    confirmation_active = True
+                                    confirmation_upgrade = upgrade
+                                    confirmation_action = 'purchase'
+                            else:
+                                # Already purchased - toggle equip/unequip
                                 confirmation_active = True
                                 confirmation_upgrade = upgrade
+                                confirmation_action = 'toggle_equip'
                         y_offset_check += 70
             elif e.type == pygame.MOUSEWHEEL:
                 scroll_y += e.y * scroll_speed
