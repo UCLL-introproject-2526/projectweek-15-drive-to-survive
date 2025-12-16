@@ -375,6 +375,10 @@ while running:
 
     draw_background(car.world_x)
     car.update(keys)
+    
+    # Update distance based on car's travel (200 is start position)
+    distance = car.world_x - 200
+    
     draw_ground(car.world_x)
     car.draw()
 
