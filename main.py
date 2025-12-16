@@ -4,6 +4,7 @@ from player import Player
 from zombie import Zombie, spawn_zombies
 from terrain import Terrain
 from upgrades import Upgrade, load_upgrades
+from credits import CreditsScreen
 
 class Logo:
     def __init__(self, image_path, x, y, width=None, height=None):
@@ -68,12 +69,12 @@ class Background:
 class StartScreen:
     def __init__(self):
         self.__background = Background('images/Background-image.png')
-        self.__logo = Logo('images/UI/logo.png', 287, 60, 450, 325)
+        self.__logo = Logo('images/UI/logo.png', 112, 100, 800, 500)
         
-        # Buttons
-        self.__start_button = Button(412, 350, 200, 60, 'Start Game', (50, 150, 50), (70, 200, 70))
-        self.__credits_button = Button(412, 430, 200, 60, 'Credits', (100, 100, 50), (150, 150, 70))
-        self.__quit_button = Button(412, 510, 200, 60, 'Quit', (150, 50, 50), (200, 70, 70))
+        # Buttons - horizontaal naast elkaar, lager op scherm
+        self.__start_button = Button(162, 600, 200, 60, 'Start Game', (50, 150, 50), (70, 200, 70))
+        self.__credits_button = Button(412, 600, 200, 60, 'Credits', (100, 100, 50), (150, 150, 70))
+        self.__quit_button = Button(662, 600, 200, 60, 'Quit', (150, 50, 50), (200, 70, 70))
         self.__settings_button = Button(954, 10, 60, 60, '', (50, 50, 150), (70, 70, 200), icon_path='images/ui/settings-icon.png')
         
     def update(self, mouse_pos):
@@ -160,13 +161,26 @@ class GarageScreen:
             upgrade_area = pygame.Rect(1024 - 300, 100, 250, 500)
             y_offset = 0
             for upgrade in upgrades:
-                if not upgrade.purchased:
-                    item_rect = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset + self.scroll_y, 230, 60)
-                    if item_rect.collidepoint(mouse_pos) and mouse_pressed[0]:
-                        if state.money >= upgrade.price:
-                            self.confirmation_active = True
-                            self.confirmation_upgrade = upgrade
-                    y_offset += 70
+                item_rect = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset + self.scroll_y, 230, 60)
+                if item_rect.collidepoint(mouse_pos):
+                    # Left click: buy (if not purchased) or equip (if purchased but not equipped)
+                    if mouse_pressed[0]:
+                        if not upgrade.purchased:
+                            # Kopen
+                            if state.money >= upgrade.price:
+                                self.confirmation_active = True
+                                self.confirmation_upgrade = upgrade
+                        elif not upgrade.equipped:
+                            # Al gekocht maar niet equipped - direct equippen
+                            player.apply_upgrade(upgrade)
+                    # Right click: unequip upgrade (if equipped) OR reset all if default
+                    elif mouse_pressed[2]:
+                        if upgrade.equipped:
+                            if "default" in upgrade.name.lower() or "defauld" in upgrade.name.lower():
+                                player.reset_all_upgrades()
+                            else:
+                                player.remove_upgrade(upgrade)
+                y_offset += 70
         return None
     
     def render(self, srf, player, state, upgrades):
@@ -206,30 +220,60 @@ class GarageScreen:
         
         y_offset = 0
         for upgrade in upgrades:
-            if not upgrade.purchased:
-                item_rect = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset + self.scroll_y, 230, 60)
-                
-                # Only draw if visible
-                if item_rect.bottom > upgrade_area.top and item_rect.top < upgrade_area.bottom:
+            item_rect = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset + self.scroll_y, 230, 60)
+            
+            # Only draw if visible
+            if item_rect.bottom > upgrade_area.top and item_rect.top < upgrade_area.bottom:
+                # Bepaal kleur gebaseerd op status
+                if upgrade.equipped:
+                    color = (50, 100, 50)  # Groen voor equipped upgrades
+                elif upgrade.purchased:
+                    color = (60, 60, 80)  # Blauw-grijs voor owned upgrades
+                else:
                     color = (80, 80, 80)
                     if item_rect.collidepoint(pygame.mouse.get_pos()):
                         color = (120, 120, 120)
-                    pygame.draw.rect(srf, color, item_rect)
-                    
-                    # Upgrade icon
-                    try:
-                        srf.blit(upgrade.image_small, (item_rect.x + 5, item_rect.y + 10))
-                    except:
+                pygame.draw.rect(srf, color, item_rect)
+                
+                # Upgrade icon
+                try:
+                    icon = upgrade.image_small.copy()
+                    if upgrade.equipped:
+                        # Normaal voor equipped upgrades
                         pass
-                    
-                    # Upgrade text
+                    elif upgrade.purchased:
+                        # Maak icon iets donkerder voor owned maar niet equipped
+                        icon.fill((150, 150, 150, 180), special_flags=pygame.BLEND_RGBA_MULT)
+                    srf.blit(icon, (item_rect.x + 5, item_rect.y + 10))
+                except:
+                    pass
+                
+                # Upgrade text
+                if upgrade.equipped:
+                    # Equipped - show as active
+                    text_color = (100, 255, 100)
+                    text = self.__small_font.render(f'{upgrade.name}', True, text_color)
+                    srf.blit(text, (item_rect.x + 90, item_rect.y + 10))
+                    if "default" in upgrade.name.lower() or "defauld" in upgrade.name.lower():
+                        owned_text = self.__small_font.render('RIGHT CLICK: RESET', True, (200, 100, 50))
+                    else:
+                        owned_text = self.__small_font.render('EQUIPPED (R-CLICK)', True, (50, 200, 50))
+                    srf.blit(owned_text, (item_rect.x + 90, item_rect.y + 35))
+                elif upgrade.purchased:
+                    # Purchased but not equipped - show as owned
+                    text_color = (150, 150, 150)
+                    text = self.__small_font.render(f'{upgrade.name}', True, text_color)
+                    srf.blit(text, (item_rect.x + 90, item_rect.y + 10))
+                    owned_text = self.__small_font.render('OWNED (CLICK)', True, (100, 100, 200))
+                    srf.blit(owned_text, (item_rect.x + 90, item_rect.y + 35))
+                else:
                     text_color = (255, 255, 255) if state.money >= upgrade.price else (150, 150, 150)
                     text = self.__small_font.render(f'{upgrade.name}', True, text_color)
                     srf.blit(text, (item_rect.x + 90, item_rect.y + 10))
                     price_text = self.__small_font.render(f'${upgrade.price}', True, text_color)
                     srf.blit(price_text, (item_rect.x + 90, item_rect.y + 35))
-                
-                y_offset += 70
+            
+            y_offset += 70
         
         # Start button
         self.__start_button.render(srf)
@@ -316,9 +360,10 @@ def main():
     clock = pygame.time.Clock()
     
     # Game states
-    current_state = 'start_screen'  # 'start_screen', 'garage', of 'playing'
+    current_state = 'start_screen'  # 'start_screen', 'garage', 'credits', of 'playing'
     start_screen = StartScreen()
     garage_screen = GarageScreen()
+    credits_screen = None  # Initialiseren wanneer nodig
     upgrades = load_upgrades()
     current_level = 1
     state = State(current_level)
@@ -336,6 +381,8 @@ def main():
                 return
             elif event.type == pygame.MOUSEWHEEL and current_state == 'garage':
                 garage_screen.handle_scroll(event.y, len(upgrades))
+            elif event.type == pygame.MOUSEWHEEL and current_state == 'credits':
+                credits_screen.handle_scroll(event.y)
         
         if current_state == 'start_screen':
             start_screen.update(mouse_pos)
@@ -347,8 +394,7 @@ def main():
                 pygame.quit()
                 return
             elif action == 'credits':
-                # Voeg credits functionaliteit toe
-                pass
+                current_state = 'credits'
             elif action == 'settings':
                 # Voeg settings functionaliteit toe
                 pass
@@ -368,6 +414,20 @@ def main():
             
             clear_surface(srf)
             garage_screen.render(srf, player, state, upgrades)
+            pygame.display.flip()
+        
+        elif current_state == 'credits':
+            if credits_screen is None:
+                credits_screen = CreditsScreen()
+            
+            credits_screen.update(mouse_pos)
+            action = credits_screen.handle_click(mouse_pos, mouse_pressed)
+            
+            if action == 'back_to_menu':
+                current_state = 'start_screen'
+            
+            clear_surface(srf)
+            credits_screen.render(srf)
             pygame.display.flip()
             
         elif current_state == 'playing':

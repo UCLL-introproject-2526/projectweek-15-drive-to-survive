@@ -126,14 +126,32 @@ class Player:
         return self.health > 0
     
     def apply_upgrade(self, upgrade):
-        """Apply an upgrade to the player"""
-        # Check if already purchased
-        if upgrade in self.purchased_upgrades:
+        """Apply/equip an upgrade to the player"""
+        # Check if already equipped
+        if upgrade.equipped:
             return
         
         self.damage_reduction += upgrade.damage_reduction
         self.speed_multiplier += upgrade.speed_increase
-        self.purchased_upgrades.append(upgrade)
+        if upgrade not in self.purchased_upgrades:
+            self.purchased_upgrades.append(upgrade)
+        upgrade.equipped = True
+        self.update_combined_image()
+    
+    def remove_upgrade(self, upgrade):
+        """Unequip an upgrade from the player (stays purchased)"""
+        if upgrade.equipped:
+            self.damage_reduction -= upgrade.damage_reduction
+            self.speed_multiplier -= upgrade.speed_increase
+            upgrade.equipped = False
+            self.update_combined_image()
+    
+    def reset_all_upgrades(self):
+        """Unequip all upgrades and reset all buffs to default"""
+        for upgrade in self.purchased_upgrades:
+            upgrade.equipped = False
+        self.damage_reduction = 0
+        self.speed_multiplier = 1.0
         self.update_combined_image()
     
     def update_combined_image(self):
