@@ -13,7 +13,7 @@
   },
   "mustang.chicken": {
     "purchased": true,
-    "equipped": false
+    "equipped": true
   },
   "current_car": "default",
   "Default.Turret": {

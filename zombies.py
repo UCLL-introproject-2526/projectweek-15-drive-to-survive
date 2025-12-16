@@ -267,10 +267,45 @@ class fatZombie:
 
 
 def spawn_zombies(level):
-    if level < 2:
-        zombies = []
-        # Spawn 3 zombies at random positions
+    """Spawn zombies for a given level.
+
+    Behavior:
+    - Level 0: a few fat zombies (easier)
+    - Level 1: mix of normal and fat zombies
+    - Level >=2: scaled number of zombies, mixture increases with level
+    """
+    zombies = []
+
+    if level <= 0:
+        # Beginner level: a few fat zombies
         for i in range(3):
             x = random.randint(800 + i * 2000, 2500 + i * 2000)
             zombies.append(fatZombie(x))
-        return zombies
+
+    elif level == 1:
+        # Mix of normal and fat
+        for i in range(4):
+            x = random.randint(800 + i * 1500, 2200 + i * 1500)
+            zombies.append(Zombie(x))
+        for i in range(2):
+            x = random.randint(1200 + i * 1800, 3000 + i * 1800)
+            zombies.append(fatZombie(x))
+
+    else:
+        # Higher levels: scale count with level but cap to avoid overwhelming
+        count = min(12, 3 + level * 2)
+        for i in range(count):
+            distance = 800 + i * 800
+            if i % 4 == 0:
+                zcls = fatZombie
+            else:
+                zcls = Zombie
+            x = random.randint(distance, distance + 600)
+            zombies.append(zcls(x))
+
+    random.shuffle(zombies)
+    print(f"Spawned {len(zombies)} zombies for level {level}")
+    return zombies
+
+    # For other levels (or if no spawning rules apply), return an empty list
+    return []
