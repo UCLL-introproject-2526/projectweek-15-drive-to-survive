@@ -3,6 +3,7 @@
 ## Player
 - (Kip (gevoiced door Ben) toevoegen als Easter Egg)
 - Zombies voicen, (iedereen een paar voice lines)
+- turret laten schieten
 ---
 
 ## Enemies
