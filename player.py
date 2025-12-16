@@ -137,22 +137,22 @@ class Player:
         self.update_combined_image()
     
     def update_combined_image(self):
-        """Use the latest upgrade image as the car image"""
+        old_center = self.rect.center  # keep current position
+
         if self.purchased_upgrades:
-            # Gebruik de laatst gekochte upgrade als de auto image
             latest_upgrade = self.purchased_upgrades[-1]
-            
-            # Check if this is the ramp upgrade and scale it differently
-            if "ramp" in latest_upgrade.name.lower():
-                up_scaled = pygame.transform.scale(latest_upgrade.image, (220, 200))
-            else:
-                up_scaled = pygame.transform.scale(latest_upgrade.image, (200, 200))
-            
-            self.__base_image = up_scaled
-            self.rect = self.__base_image.get_rect()
+
+        # USE IMAGE AS-IS (no forced scaling)
+            self.__base_image = latest_upgrade.image.convert_alpha()
+
         else:
-            # Als er geen upgrades zijn, gebruik de originele auto
+        # back to original car image
             self.__create_image(self.__original_image_path)
+            self.__base_image = self.__base_image.convert_alpha()
+
+    # recreate rect but keep center
+        self.rect = self.__base_image.get_rect(center=old_center)
+
     
     def draw_fuel_bar(self, srf):
         """Draw fuel bar on screen"""
