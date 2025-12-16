@@ -641,10 +641,11 @@ def main_game_loop():
         car.draw_upgrades(car.world_x, screen)
 
         for z in zombies:
-            gained = z.update(car)
+            # Pass terrain accessor into zombie update/draw
+            gained = z.update(car, get_ground_height)
             if gained:
                 state.money += gained
-            z.draw(car.world_x, screen)
+            z.draw(screen, car.world_x, get_ground_height)
 
         # Draw both health and fuel bars
         draw_health_bar(car)

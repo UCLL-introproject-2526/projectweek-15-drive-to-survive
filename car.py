@@ -185,6 +185,16 @@ class Car:
         self.image = combined
         self.rect = self.image.get_rect()
 
+    def take_damage(self, amount: int):
+        """Reduce car health by amount (minimum 0)."""
+        try:
+            amt = int(amount)
+        except Exception:
+            amt = 0
+        self.health -= amt
+        if self.health < 0:
+            self.health = 0
+
     def update(self, keys):
         # 'keys' is expected to be the sequence returned by pygame.key.get_pressed()
         fuel_consumed = False

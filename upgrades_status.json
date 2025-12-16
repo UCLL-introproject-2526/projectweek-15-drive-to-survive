@@ -15,7 +15,7 @@
     "purchased": true,
     "equipped": false
   },
-  "current_car": "mustang",
+  "current_car": "default",
   "Default.Turret": {
     "purchased": true,
     "equipped": true
