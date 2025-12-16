@@ -68,7 +68,11 @@ print('Final state: x=%.1f y=%.1f angle=%.2f health=%s' % (car.world_x, car.y, c
 # Collision test: spawn a zombie at the car's x and ensure collision happens
 from zombies import Zombie
 z = Zombie(car.world_x)
-# ensure the zombie rect is placed and check update() effect
+# Show rects before update for diagnostics
+print('Before update: car.rect =', car.rect, 'z.rect (unpositioned) =', z.rect)
 money = z.update(car, get_ground_height)
+# Show rects after update for diagnostics
+print('After update: car.rect =', car.rect, 'z.rect =', z.rect)
+print('Rect overlap?', car.rect.colliderect(z.rect))
 print('Collision test: money returned =', money, 'car health =', car.health)
 print('\nSmoke tests finished')

@@ -260,7 +260,8 @@ class Car:
             self.speed *= 0.995
 
         self.world_x += self.speed
-        self.rect.topleft = (333 - self.rect.width//2, self.y)
+        # Use the same camera center expression as zombies (1024//3) for consistent collision coordinates
+        self.rect.topleft = (1024//3 - self.rect.width//2, self.y)
 
     def draw(self, screen):
         rot = pygame.transform.rotate(self.image, self.angle)
