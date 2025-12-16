@@ -16,6 +16,7 @@ class Upgrade:
         self.image = pygame.image.load(img_file).convert_alpha()
         self.image_small = pygame.transform.scale(self.image, (80, 40))
         self.purchased = False
+        self.equipped = False
 
 def load_upgrades():
     """Load all upgrades from the upgrades folder"""
