@@ -3,6 +3,7 @@ import math
 from player import Player
 from zombie import Zombie, spawn_zombies
 from terrain import Terrain
+from upgrades import Upgrade, load_upgrades
 
 class Logo:
     def __init__(self, image_path, x, y, width=None, height=None):
@@ -100,11 +101,162 @@ class StartScreen:
         self.__quit_button.render(srf)
         self.__settings_button.render(srf)
 
-class State:
+class GarageScreen:
     def __init__(self):
+        try:
+            garage_bg_raw = pygame.image.load('images/Background-image-garage.png')
+            self.__background = pygame.transform.scale(garage_bg_raw, (1024, 768))
+        except:
+            self.__background = None
+        
+        self.__title_font = pygame.font.Font(None, 48)
+        self.__font = pygame.font.Font(None, 32)
+        self.__small_font = pygame.font.Font(None, 24)
+        
+        self.__start_button = Button(412, 650, 200, 60, 'Start Level', (200, 70, 70), (255, 100, 80))
+        
+        self.scroll_y = 0
+        self.scroll_speed = 20
+        self.confirmation_active = False
+        self.confirmation_upgrade = None
+    
+    def update(self, mouse_pos):
+        self.__start_button.update(mouse_pos)
+    
+    def handle_scroll(self, direction, upgrades_count):
+        self.scroll_y += direction * self.scroll_speed
+        max_scroll = max(0, upgrades_count * 70 - 400)
+        self.scroll_y = max(min(self.scroll_y, 0), -max_scroll)
+    
+    def handle_click(self, mouse_pos, mouse_pressed, player, state, upgrades):
+        if self.confirmation_active and self.confirmation_upgrade:
+            # Handle confirmation popup
+            popup_rect = pygame.Rect(1024//2 - 150, 768//2 - 120, 300, 240)
+            btn_yes = pygame.Rect(popup_rect.x + 30, popup_rect.y + 180, 100, 40)
+            btn_no = pygame.Rect(popup_rect.x + 170, popup_rect.y + 180, 100, 40)
+            
+            if btn_yes.collidepoint(mouse_pos) and mouse_pressed[0]:
+                if state.money >= self.confirmation_upgrade.price:
+                    state.money -= self.confirmation_upgrade.price
+                    self.confirmation_upgrade.purchased = True
+                    player.apply_upgrade(self.confirmation_upgrade)
+                self.confirmation_active = False
+                self.confirmation_upgrade = None
+                return None
+            elif btn_no.collidepoint(mouse_pos) and mouse_pressed[0]:
+                self.confirmation_active = False
+                self.confirmation_upgrade = None
+                return None
+        else:
+            if self.__start_button.is_clicked(mouse_pos, mouse_pressed):
+                return 'start_level'
+            
+            # Check upgrade clicks
+            upgrade_area = pygame.Rect(1024 - 300, 100, 250, 500)
+            y_offset = 0
+            for upgrade in upgrades:
+                if not upgrade.purchased:
+                    item_rect = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset + self.scroll_y, 230, 60)
+                    if item_rect.collidepoint(mouse_pos) and mouse_pressed[0]:
+                        if state.money >= upgrade.price:
+                            self.confirmation_active = True
+                            self.confirmation_upgrade = upgrade
+                    y_offset += 70
+        return None
+    
+    def render(self, srf, player, state, upgrades):
+        # Background
+        if self.__background:
+            srf.blit(self.__background, (0, 0))
+        else:
+            srf.fill((50, 50, 50))
+        
+        # Title
+        title = self.__title_font.render('Garage - Upgrades', True, (255, 255, 255))
+        srf.blit(title, (1024//2 - title.get_width()//2, 20))
+        
+        # Money display
+        money_text = self.__font.render(f'Money: ${state.money}', True, (255, 255, 255))
+        srf.blit(money_text, (50, 80))
+        
+        # Level display
+        level_text = self.__font.render(f'Level: {state.level}', True, (255, 255, 255))
+        srf.blit(level_text, (50, 120))
+        
+        # Car preview
+        try:
+            car_img = pygame.transform.scale(player._Player__base_image, (500, 500))
+            car_rect = car_img.get_rect(center=(300, 400))
+            srf.blit(car_img, car_rect)
+        except:
+            pass
+        
+        # Upgrades menu
+        upgrade_area = pygame.Rect(1024 - 300, 100, 250, 500)
+        pygame.draw.rect(srf, (50, 50, 50), upgrade_area)
+        pygame.draw.rect(srf, (255, 255, 255), upgrade_area, 2)
+        
+        y_offset = 0
+        for upgrade in upgrades:
+            if not upgrade.purchased:
+                item_rect = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset + self.scroll_y, 230, 60)
+                
+                # Only draw if visible
+                if item_rect.bottom > upgrade_area.top and item_rect.top < upgrade_area.bottom:
+                    color = (80, 80, 80)
+                    if item_rect.collidepoint(pygame.mouse.get_pos()):
+                        color = (120, 120, 120)
+                    pygame.draw.rect(srf, color, item_rect)
+                    
+                    # Upgrade icon
+                    try:
+                        srf.blit(upgrade.image_small, (item_rect.x + 5, item_rect.y + 10))
+                    except:
+                        pass
+                    
+                    # Upgrade text
+                    text_color = (255, 255, 255) if state.money >= upgrade.price else (150, 150, 150)
+                    text = self.__small_font.render(f'{upgrade.name}', True, text_color)
+                    srf.blit(text, (item_rect.x + 90, item_rect.y + 10))
+                    price_text = self.__small_font.render(f'${upgrade.price}', True, text_color)
+                    srf.blit(price_text, (item_rect.x + 90, item_rect.y + 35))
+                
+                y_offset += 70
+        
+        # Start button
+        self.__start_button.render(srf)
+        
+        # Confirmation popup
+        if self.confirmation_active and self.confirmation_upgrade:
+            popup_rect = pygame.Rect(1024//2 - 150, 768//2 - 120, 300, 240)
+            pygame.draw.rect(srf, (60, 60, 60), popup_rect)
+            pygame.draw.rect(srf, (255, 255, 255), popup_rect, 2)
+            
+            msg = self.__small_font.render(f'Purchase {self.confirmation_upgrade.name}', True, (255, 255, 255))
+            srf.blit(msg, (popup_rect.centerx - msg.get_width()//2, popup_rect.y + 20))
+            price_msg = self.__small_font.render(f'for ${self.confirmation_upgrade.price}?', True, (255, 255, 255))
+            srf.blit(price_msg, (popup_rect.centerx - price_msg.get_width()//2, popup_rect.y + 50))
+            
+            # Yes/No buttons
+            btn_yes = pygame.Rect(popup_rect.x + 30, popup_rect.y + 180, 100, 40)
+            btn_no = pygame.Rect(popup_rect.x + 170, popup_rect.y + 180, 100, 40)
+            
+            yes_color = (255, 100, 80) if btn_yes.collidepoint(pygame.mouse.get_pos()) else (200, 70, 70)
+            pygame.draw.rect(srf, yes_color, btn_yes, border_radius=5)
+            yes_text = self.__small_font.render('Yes', True, (255, 255, 255))
+            srf.blit(yes_text, (btn_yes.centerx - yes_text.get_width()//2, btn_yes.centery - yes_text.get_height()//2))
+            
+            no_color = (255, 100, 80) if btn_no.collidepoint(pygame.mouse.get_pos()) else (200, 70, 70)
+            pygame.draw.rect(srf, no_color, btn_no, border_radius=5)
+            no_text = self.__small_font.render('No', True, (255, 255, 255))
+            srf.blit(no_text, (btn_no.centerx - no_text.get_width()//2, btn_no.centery - no_text.get_height()//2))
+
+class State:
+    def __init__(self, level=1):
         self.__background = Background('images/Background-image.png')
         self.terrain = Terrain()
-        self.zombies = spawn_zombies(1)
+        self.level = level
+        self.zombies = spawn_zombies(level)
         self.money = 0
 
     def get_ground_height(self, x):
@@ -129,25 +281,24 @@ def render_frame(srf, state, player):
     clear_surface(srf)
     state.render(srf, player.world_x)
     player.render(srf, state)
-    player.draw_health_bar(srf)  # Draw health bar
+    player.draw_health_bar(srf)
+    player.draw_fuel_bar(srf)
     
-    # Display player.world_x and money rechtsboven
+    # Display distance, money, and fuel
     font = pygame.font.Font(None, 36)
+    small_font = pygame.font.Font(None, 28)
+    
+    # Distance and money top right
     text = font.render(f'Distance: {int(player.world_x)}  Money: ${state.money}', True, (255, 255, 255))
     text_rect = text.get_rect(topright=(1024 - 10, 10))
     srf.blit(text, text_rect)
     
-    pygame.display.flip()
-
-def process_key_input(player, keys):
-    # Player speed updaten op basis van input
-    if keys[pygame.K_RIGHT]:
-        player.speed += 0.5
-    if keys[pygame.K_LEFT]:
-        player.speed -= 0.3
+    # Fuel percentage top right below distance
+    fuel_text = small_font.render(f'Fuel: {int(player.fuel)}%', True, (255, 255, 255))
+    fuel_rect = fuel_text.get_rect(topright=(1024 - 10, 50))
+    srf.blit(fuel_text, fuel_rect)
     
-    # Wrijving toevoegen zodat auto niet oneindig doorrolt
-    player.speed *= 0.98
+    pygame.display.flip()
 
 def main():
     pygame.init()
@@ -157,9 +308,12 @@ def main():
     clock = pygame.time.Clock()
     
     # Game states
-    current_state = 'start_screen'  # 'start_screen' of 'playing'
+    current_state = 'start_screen'  # 'start_screen', 'garage', of 'playing'
     start_screen = StartScreen()
-    state = State()
+    garage_screen = GarageScreen()
+    upgrades = load_upgrades()
+    current_level = 1
+    state = State(current_level)
     player = Player('images/first-car-concept.png')
     player.initialize_position(state)  # Initiële positie 
     
@@ -172,13 +326,15 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
+            elif event.type == pygame.MOUSEWHEEL and current_state == 'garage':
+                garage_screen.handle_scroll(event.y, len(upgrades))
         
         if current_state == 'start_screen':
             start_screen.update(mouse_pos)
             action = start_screen.handle_click(mouse_pos, mouse_pressed)
             
             if action == 'start_game':
-                current_state = 'playing'
+                current_state = 'garage'
             elif action == 'quit':
                 pygame.quit()
                 return
@@ -192,11 +348,21 @@ def main():
             clear_surface(srf)
             start_screen.render(srf)
             pygame.display.flip()
+        
+        elif current_state == 'garage':
+            garage_screen.update(mouse_pos)
+            action = garage_screen.handle_click(mouse_pos, mouse_pressed, player, state, upgrades)
+            
+            if action == 'start_level':
+                current_state = 'playing'
+            
+            clear_surface(srf)
+            garage_screen.render(srf, player, state, upgrades)
+            pygame.display.flip()
             
         elif current_state == 'playing':
             keys = pygame.key.get_pressed()
-            process_key_input(player, keys)
-            player.update(state)
+            player.update(state, keys)
             
             # Update zombies en check collisions
             for zombie in state.zombies:
@@ -206,11 +372,21 @@ def main():
             render_frame(srf, state, player)
             
             # Check game over condities
-            if player.world_x >= 10000 or not player.is_alive():
+            if player.world_x >= 10000:
+                # Level complete - ga naar garage
+                current_level += 1
+                current_state = 'garage'
+                old_money = state.money
+                state = State(current_level)
+                state.money = old_money + (player.health * 5)  # Keep money + bonus
+                player = Player('images/first-car-concept.png')
+                player.initialize_position(state)
+            elif not player.is_alive() or player.fuel <= 0:
                 # Game over - Terug naar startscherm
                 current_state = 'start_screen'
-                # Reset game
-                state = State()
+                current_level = 1
+                upgrades = load_upgrades()  # Reset upgrades
+                state = State(current_level)
                 player = Player('images/first-car-concept.png')
                 player.initialize_position(state)
         

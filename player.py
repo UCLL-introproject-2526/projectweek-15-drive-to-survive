@@ -11,10 +11,19 @@ class Player:
         self.air_angle = None
         self.health = 100  # Player health
         self.max_health = 100  # Maximum health
+        self.fuel = 100  # Fuel level
+        self.max_fuel = 100  # Maximum fuel
+        self.base_speed = 0.12  # Base acceleration
+        self.damage_reduction = 0  # Damage reduction from upgrades
+        self.speed_multiplier = 1.0  # Speed multiplier from upgrades
+        self.FUEL_CONSUMPTION_RATE = 0.05
         self.GRAVITY = 0.095
         self.FRICTION = 0.99
         self.AIR_FRICTION = 0.995
+        self.__original_image_path = image  # Store path to reload fresh
         self.__create_image(image)
+        self.__base_car_image = self.__base_image.copy()  # Store original
+        self.purchased_upgrades = []  # Store purchased upgrade objects
         self.rect = self.__base_image.get_rect()
         self.y = 0  # Wordt goedgezet na dat State is aangemaakt
 
@@ -28,7 +37,17 @@ class Player:
         """Call this after state is created to set initial ground position"""
         self.y = state.get_ground_height(int(self.world_x)) - self.rect.height
 
-    def update(self, state):
+    def update(self, state, keys):
+        # Fuel-based acceleration
+        if keys[pygame.K_RIGHT] and self.fuel > 0:
+            self.speed += self.base_speed * self.speed_multiplier
+            self.fuel -= self.FUEL_CONSUMPTION_RATE
+            self.fuel = max(self.fuel, 0)
+        if keys[pygame.K_LEFT] and self.fuel > 0:
+            self.speed -= self.base_speed * self.speed_multiplier * 0.8
+            self.fuel -= self.FUEL_CONSUMPTION_RATE
+            self.fuel = max(self.fuel, 0)
+        
         # De huidige ground height krijgen
         ground_y = state.get_ground_height(int(self.world_x)) - self.rect.height
         
@@ -98,3 +117,45 @@ class Player:
     def is_alive(self):
         """Check if player is still alive"""
         return self.health > 0
+    
+    def apply_upgrade(self, upgrade):
+        """Apply an upgrade to the player"""
+        # Check if already purchased
+        if upgrade in self.purchased_upgrades:
+            return
+        
+        self.damage_reduction += upgrade.damage_reduction
+        self.speed_multiplier += upgrade.speed_increase
+        self.purchased_upgrades.append(upgrade)
+        self.update_combined_image()
+    
+    def update_combined_image(self):
+        """Combine base car image with all upgrade images"""
+        # Start fresh from the original car image
+        original = pygame.image.load(self.__original_image_path)
+        original = pygame.transform.scale(original, (200, 200))
+        
+        combined = original.copy()
+        # Apply each purchased upgrade's image
+        for upgrade in self.purchased_upgrades:
+            up_scaled = pygame.transform.scale(upgrade.image, (200, 200))
+            combined.blit(up_scaled, (0, 0))
+        self.__base_image = combined
+        self.rect = self.__base_image.get_rect()
+    
+    def draw_fuel_bar(self, srf):
+        """Draw fuel bar on screen"""
+        bar_width = 200
+        bar_height = 20
+        x = 20
+        y = 80
+        
+        # Background (dark gray)
+        pygame.draw.rect(srf, (60, 60, 60), (x, y, bar_width, bar_height))
+        
+        # Foreground (fuel) - yellow/orange
+        fuel_width = int((self.fuel / self.max_fuel) * bar_width)
+        pygame.draw.rect(srf, (255, 200, 0), (x, y, fuel_width, bar_height))
+        
+        # Border
+        pygame.draw.rect(srf, (0, 0, 0), (x, y, bar_width, bar_height), 2)
