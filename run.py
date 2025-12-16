@@ -139,7 +139,7 @@ class StartScreen:
             self.background = Background("")  # Will use fallback
         
         # Create logo - adjust position as needed
-        self.logo = Logo("", 450, 200, WIDTH//2, 150)
+        self.logo = Logo("assets/banner/image.png", 450, 300, WIDTH//2, 150)
         
         # Create buttons
         button_width = 250
@@ -579,7 +579,7 @@ def garage(car):
             # Gray out if not enough money or already purchased
             if upgrade.purchased:
                 text_color = (200, 200, 200)
-                status = " [PURCHASED]"
+                status = ""
             elif money >= upgrade.price:
                 text_color = WHITE
                 status = ""
