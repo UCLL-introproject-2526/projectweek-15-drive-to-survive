@@ -136,34 +136,22 @@ class Player:
         self.update_combined_image()
     
     def update_combined_image(self):
-        """Combine base car image with all upgrade images"""
-        # Start fresh from the original car image
-        original = pygame.image.load(self.__original_image_path)
-        original = pygame.transform.scale(original, (200, 200))
-        
-        # Create a surface with per-pixel alpha
-        combined = pygame.Surface((200, 200), pygame.SRCALPHA)
-        combined.fill((0, 0, 0, 0))  # Clear with transparent background
-        
-        # First blit the base car
-        combined.blit(original, (0, 0))
-        
-        # Apply each purchased upgrade's image with alpha blending
-        for upgrade in self.purchased_upgrades:
-            # Check if this is the ramp upgrade and scale it differently
-            if "ramp" in upgrade.name.lower():
-                up_scaled = pygame.transform.scale(upgrade.image, (220, 200))
-                upgrade_rect = up_scaled.get_rect(center=(100, 100))
-
-            else:
-                up_scaled = pygame.transform.scale(upgrade.image, (200, 200))
-                upgrade_rect = up_scaled.get_rect(center=(100, 100))
+        """Use the latest upgrade image as the car image"""
+        if self.purchased_upgrades:
+            # Gebruik de laatst gekochte upgrade als de auto image
+            latest_upgrade = self.purchased_upgrades[-1]
             
-            # Center the upgrade image
-            combined.blit(up_scaled, upgrade_rect)
-        
-        self.__base_image = combined
-        self.rect = self.__base_image.get_rect()
+            # Check if this is the ramp upgrade and scale it differently
+            if "ramp" in latest_upgrade.name.lower():
+                up_scaled = pygame.transform.scale(latest_upgrade.image, (220, 200))
+            else:
+                up_scaled = pygame.transform.scale(latest_upgrade.image, (200, 200))
+            
+            self.__base_image = up_scaled
+            self.rect = self.__base_image.get_rect()
+        else:
+            # Als er geen upgrades zijn, gebruik de originele auto
+            self.__create_image(self.__original_image_path)
     
     def draw_fuel_bar(self, srf):
         """Draw fuel bar on screen"""
