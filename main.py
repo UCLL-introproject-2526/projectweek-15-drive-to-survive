@@ -114,6 +114,7 @@ class GarageScreen:
         self.__small_font = pygame.font.Font(None, 24)
         
         self.__start_button = Button(412, 650, 200, 60, 'Start Level', (200, 70, 70), (255, 100, 80))
+        self.__back_button = Button(20, 20, 120, 50, 'Menu', (70, 70, 70), (100, 100, 100))
         
         self.scroll_y = 0
         self.scroll_speed = 20
@@ -122,6 +123,8 @@ class GarageScreen:
     
     def update(self, mouse_pos):
         self.__start_button.update(mouse_pos)
+        self.__back_button.update(mouse_pos)
+        self.__back_button.update(mouse_pos)
     
     def handle_scroll(self, direction, upgrades_count):
         self.scroll_y += direction * self.scroll_speed
@@ -150,6 +153,8 @@ class GarageScreen:
         else:
             if self.__start_button.is_clicked(mouse_pos, mouse_pressed):
                 return 'start_level'
+            elif self.__back_button.is_clicked(mouse_pos, mouse_pressed):
+                return 'back_to_menu'
             
             # Check upgrade clicks
             upgrade_area = pygame.Rect(1024 - 300, 100, 250, 500)
@@ -170,6 +175,9 @@ class GarageScreen:
             srf.blit(self.__background, (0, 0))
         else:
             srf.fill((50, 50, 50))
+        
+        # Back button
+        self.__back_button.render(srf)
         
         # Title
         title = self.__title_font.render('Garage - Upgrades', True, (255, 255, 255))
@@ -257,7 +265,7 @@ class State:
         self.terrain = Terrain()
         self.level = level
         self.zombies = spawn_zombies(level)
-        self.money = 0
+        self.money = 500
 
     def get_ground_height(self, x):
         return self.terrain.get_ground_height(x)
@@ -355,6 +363,8 @@ def main():
             
             if action == 'start_level':
                 current_state = 'playing'
+            elif action == 'back_to_menu':
+                current_state = 'start_screen'
             
             clear_surface(srf)
             garage_screen.render(srf, player, state, upgrades)
@@ -377,9 +387,16 @@ def main():
                 current_level += 1
                 current_state = 'garage'
                 old_money = state.money
+                old_upgrades = player.purchased_upgrades.copy()  # Save upgrades
                 state = State(current_level)
                 state.money = old_money + (player.health * 5)  # Keep money + bonus
                 player = Player('images/first-car-concept.png')
+                player.purchased_upgrades = old_upgrades  # Restore upgrades
+                player.update_combined_image()  # Apply upgrades to image
+                # Reapply upgrade stats
+                for upgrade in old_upgrades:
+                    player.damage_reduction += upgrade.damage_reduction
+                    player.speed_multiplier += upgrade.speed_increase
                 player.initialize_position(state)
             elif not player.is_alive() or player.fuel <= 0:
                 # Game over - Terug naar startscherm
