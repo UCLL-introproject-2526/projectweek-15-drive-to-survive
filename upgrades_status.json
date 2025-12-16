@@ -9,6 +9,6 @@
   },
   "Turret": {
     "purchased": true,
-    "equipped": true
+    "equipped": false
   }
 }

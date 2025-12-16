@@ -108,9 +108,12 @@ class Button:
         if icon_path:
             try:
                 self.icon = pygame.image.load(icon_path).convert_alpha()
-                self.icon = pygame.transform.scale(self.icon, (40, 40))
-            except:
-                pass
+                # Scale icon to fit the button (leave some padding)
+                icon_size = min(width, height) - 20
+                self.icon = pygame.transform.scale(self.icon, (icon_size, icon_size))
+            except Exception as e:
+                print(f"Error loading icon {icon_path}: {e}")
+                self.icon = None
     
     def update(self, mouse_pos):
         self.hovered = self.rect.collidepoint(mouse_pos)
@@ -155,9 +158,10 @@ class StartScreen:
         self.quit_button = Button(button_x, 460, button_width, button_height, 
                                   'Quit', (150, 50, 50), (200, 70, 70))
         
-        # Settings button in top right
+        # Settings button in top right with icon
         self.settings_button = Button(WIDTH - 70, 20, 50, 50, '', 
-                                      (50, 50, 150), (70, 70, 200))
+                                      (50, 50, 150), (70, 70, 200),
+                                      icon_path="assets/banner/setting.png")
     
     def update(self, mouse_pos):
         self.start_button.update(mouse_pos)
