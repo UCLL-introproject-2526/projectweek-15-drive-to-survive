@@ -1,6 +1,6 @@
 {
   "name": "Ramp",
-  "description": "Adds a ramp to the car, allowing it to jump over obstacles.",
+  "description": "Adds a ramp to the car, allowing it to kill zombies better.",
 
   "car_damage": 5,
   "damage_reduction": 5,
