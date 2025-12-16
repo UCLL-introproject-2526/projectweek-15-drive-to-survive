@@ -2,6 +2,42 @@ import pygame
 import os
 import random
 
+# Cache for loaded animations to avoid reloading images for each zombie instance
+_animation_cache = {}
+
+def load_zombie_animation_cached(folder, base_name):
+    """Load and cache animation frames for (folder, base_name)."""
+    key = (folder, base_name)
+    if key in _animation_cache:
+        return _animation_cache[key]
+
+    frames = []
+    if not os.path.exists(folder):
+        # Only warn once per missing folder
+        print(f"Warning: Folder not found: {folder}")
+        _animation_cache[key] = frames
+        return frames
+
+    frame_num = 1
+    while True:
+        frame_path = os.path.join(folder, f"{base_name} ({frame_num}).png")
+        if os.path.exists(frame_path):
+            try:
+                img = pygame.image.load(frame_path).convert_alpha()
+                img = pygame.transform.flip(img, True, False)
+                img = pygame.transform.scale(img, (90,80))
+                frames.append(img)
+                frame_num += 1
+            except Exception as e:
+                print(f"Error loading {frame_path}: {e}")
+                break
+        else:
+            break
+
+    print(f"Loaded {len(frames)} frames from {folder}")
+    _animation_cache[key] = frames
+    return frames
+
 class Zombie:
     def __init__(self, x):
         self.x = x
@@ -75,7 +111,16 @@ class Zombie:
     def update(self, car, terrain):
         """Update zombie and check collision with car. Returns money earned."""
         money_earned = 0
-        
+
+        # Position this zombie for the current frame so collisions are accurate
+        sx = self.x - car.world_x + 1024//3 - self.rect.width//2
+        if callable(terrain):
+            ground_y = terrain(self.x)
+        else:
+            ground_y = terrain.get_ground_height(self.x)
+        sy = ground_y - self.rect.height
+        self.rect.topleft = (sx, sy)
+
         if self.alive and not self.dying:
             if self.rect.colliderect(car.rect):
                 self.dying = True
@@ -84,17 +129,17 @@ class Zombie:
                 damage = max(0, 10 - car.damage_reduction)
                 car.take_damage(damage)
                 money_earned = 10
-        
+
         if self.dying:
             self.death_timer += 1
             if self.death_timer >= self.death_duration:
                 self.alive = False
-        
+
         # Update animation frame
         self.animation_counter += self.animation_speed
         if self.animation_counter >= 1:
             self.animation_counter = 0
-            
+
             if self.dying and len(self.death_frames) > 0:
                 # Death animation - play through once
                 self.current_frame += 1
@@ -103,7 +148,7 @@ class Zombie:
             elif not self.dying and len(self.walk_frames) > 0:
                 # Walking animation - loop continuously
                 self.current_frame = (self.current_frame + 1) % len(self.walk_frames)
-        
+
         return money_earned
 
     def draw(self, srf, cam_x, terrain):
@@ -204,7 +249,16 @@ class bigZombie:
     def update(self, car, terrain):
         """Update zombie and check collision with car. Returns money earned."""
         money_earned = 0
-        
+
+        # Ensure the rect is placed consistently (uses car.world_x as the camera x)
+        sx = self.x - car.world_x + 1024//3 - self.rect.width//2
+        if callable(terrain):
+            ground_y = terrain(self.x)
+        else:
+            ground_y = terrain.get_ground_height(self.x)
+        sy = ground_y - self.rect.height
+        self.rect.topleft = (sx, sy)
+
         if self.alive and not self.dying:
             if self.rect.colliderect(car.rect):
                 self.dying = True
@@ -213,17 +267,17 @@ class bigZombie:
                 damage = max(0, 10 - car.damage_reduction)
                 car.take_damage(damage)
                 money_earned = 10
-        
+
         if self.dying:
             self.death_timer += 1
             if self.death_timer >= self.death_duration:
                 self.alive = False
-        
+
         # Update animation frame
         self.animation_counter += self.animation_speed
         if self.animation_counter >= 1:
             self.animation_counter = 0
-            
+
             if self.dying and len(self.death_frames) > 0:
                 # Death animation - play through once
                 self.current_frame += 1
@@ -232,7 +286,7 @@ class bigZombie:
             elif not self.dying and len(self.walk_frames) > 0:
                 # Walking animation - loop continuously
                 self.current_frame = (self.current_frame + 1) % len(self.walk_frames)
-        
+
         return money_earned
 
     def draw(self, srf, cam_x, terrain):

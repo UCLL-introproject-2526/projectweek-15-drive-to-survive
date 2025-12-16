@@ -65,4 +65,10 @@ for f in range(400):
 print('Car became airborne during simulation:', airborne)
 print('Final state: x=%.1f y=%.1f angle=%.2f health=%s' % (car.world_x, car.y, car.angle, car.health))
 
+# Collision test: spawn a zombie at the car's x and ensure collision happens
+from zombies import Zombie
+z = Zombie(car.world_x)
+# ensure the zombie rect is placed and check update() effect
+money = z.update(car, get_ground_height)
+print('Collision test: money returned =', money, 'car health =', car.health)
 print('\nSmoke tests finished')
