@@ -16,8 +16,8 @@ class Player:
         self.base_speed = 0.12  # Base acceleration
         self.damage_reduction = 0  # Damage reduction from upgrades
         self.speed_multiplier = 1.0  # Speed multiplier from upgrades
-        self.FUEL_CONSUMPTION_RATE = 5
-        self.last_fuel_tick = pygame.time.get_ticks()
+        self.FUEL_CONSUMPTION_RATE = 0.1 # verandert hoeveel brandstof we per seconden verbruiken
+        self.last_fuel_tick = pygame.time.get_ticks() # houd bij wanneer de laatste keer brandstof is afgegaan
         self.GRAVITY = 0.095
         self.FRICTION = 0.99
         self.AIR_FRICTION = 0.995
@@ -46,7 +46,7 @@ class Player:
             self.speed -= self.base_speed * self.speed_multiplier * 0.8
             
 
-        if self.speed != 0 and self.vspeed != 0:
+        if self.speed != 0:
             self.update_fuel()
         
         # De huidige ground height krijgen
@@ -85,9 +85,10 @@ class Player:
         # Update de hitbox voor botsing te detecteren - centreer horizontaal
         self.rect.topleft = (self.x - self.rect.width//2, self.y)
 
+    #update het brandstof niveau elke seconde dat de auto rijd
     def update_fuel(self): 
         now = pygame.time.get_ticks()
-        if now - self.last_fuel_tick >= 1000:
+        if now - self.last_fuel_tick >= 10:
             self.fuel -= self.FUEL_CONSUMPTION_RATE
             self.fuel = max(self.fuel, 0)
             self.last_fuel_tick = now
