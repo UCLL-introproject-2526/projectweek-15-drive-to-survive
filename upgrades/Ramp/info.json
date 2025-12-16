@@ -2,6 +2,7 @@
   "name": "Ramp",
   "description": "Adds a ramp to the car, allowing it to jump over obstacles.",
 
+  "z-index": 2,
   "car_damage": 5,
   "damage_reduction": 5,
   "speed_increase": 0.05,

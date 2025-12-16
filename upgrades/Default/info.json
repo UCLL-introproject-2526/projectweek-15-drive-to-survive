@@ -2,6 +2,7 @@
   "name": "defauld",
   "description": "defauld car.",
   
+  "z-index": 0,
   "car_damage": 0,
   "damage_reduction": 0,
   "speed_increase": 0,

@@ -4,6 +4,7 @@ import os
 import json
 import math
 import random
+import importlib.util
 
 # ==============================
 # Initialization
@@ -35,7 +36,7 @@ ZOMBIE_COLORS = [(70,170,90),(170,70,70),(70,70,170),(170,170,0)]
 # ==============================
 # Game Data
 # ==============================
-money = 0
+money = 1000
 distance = 0
 current_level = 1
 terrain_points = {}
@@ -61,6 +62,7 @@ bg_h = background_img.get_height()
 # ==============================
 class Upgrade:
     def __init__(self, folder):
+        self.folder = folder
         info_file = os.path.join(folder, "info.json")
         with open(info_file, "r") as f:
             data = json.load(f)
@@ -69,21 +71,96 @@ class Upgrade:
         self.damage_reduction = data.get("damage_reduction", 0)
         self.speed_increase = data.get("speed_increase", 0)
         self.price = data.get("price", 50)
+        self.has_script = data.get("script", False)
+        self.z_index = data.get("z-index", 0)  # Default z-index is 0
+        
         img_file = os.path.join(folder, "image.png")
         self.image = pygame.image.load(img_file).convert_alpha()
         self.image_small = pygame.transform.scale(self.image, (80, 60))
-        self.purchased = False
+        self.script_instance = None
+        
+        # Check if this upgrade was purchased before
+        self.purchased = self.check_purchased_status()
+
+    def check_purchased_status(self):
+        """Check if this upgrade was purchased in a previous session"""
+        try:
+            if os.path.exists("purchased_upgrades.json"):
+                with open("purchased_upgrades.json", "r") as f:
+                    purchased_data = json.load(f)
+                    # Return True if this upgrade name is in the purchased list
+                    return self.name in purchased_data
+        except (json.JSONDecodeError, IOError):
+            # If file doesn't exist or is corrupted, return False
+            pass
+        return False
+
+    def save_purchased_status(self):
+        """Save the purchased status to a file"""
+        try:
+            # Read existing data
+            if os.path.exists("purchased_upgrades.json"):
+                try:
+                    with open("purchased_upgrades.json", "r") as f:
+                        purchased_data = json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    purchased_data = []
+            else:
+                purchased_data = []
+            
+            # Update the list
+            if self.purchased and self.name not in purchased_data:
+                purchased_data.append(self.name)
+            elif not self.purchased and self.name in purchased_data:
+                purchased_data.remove(self.name)
+            
+            # Save back to file
+            with open("purchased_upgrades.json", "w") as f:
+                json.dump(purchased_data, f, indent=2)
+        except Exception as e:
+            print(f"Error saving purchased status: {e}")
+
+# Global dictionary to store all loaded upgrades by name
+ALL_UPGRADES = {}
 
 def load_upgrades():
+    global ALL_UPGRADES
     upgrades_list = []
     upgrades_folder = "upgrades"
+    
     if not os.path.exists(upgrades_folder):
         return upgrades_list
+    
     for folder_name in os.listdir(upgrades_folder):
         folder_path = os.path.join(upgrades_folder, folder_name)
         if os.path.isdir(folder_path):
-            upgrades_list.append(Upgrade(folder_path))
+            try:
+                # Create upgrade object
+                upgrade = Upgrade(folder_path)
+                upgrades_list.append(upgrade)
+                # Store in global dictionary
+                ALL_UPGRADES[upgrade.name] = upgrade
+            except Exception as e:
+                print(f"Error loading upgrade from {folder_path}: {e}")
+    
     return upgrades_list
+
+def save_all_purchased_upgrades():
+    """Save all purchased upgrades to file"""
+    try:
+        purchased_names = []
+        for upgrade_name, upgrade in ALL_UPGRADES.items():
+            if upgrade.purchased:
+                purchased_names.append(upgrade_name)
+        
+        with open("purchased_upgrades.json", "w") as f:
+            json.dump(purchased_names, f, indent=2)
+    except Exception as e:
+        print(f"Error saving all purchased upgrades: {e}")
+
+def get_upgrade_by_name(name):
+    """Get an upgrade by its name from the global dictionary"""
+    return ALL_UPGRADES.get(name)
 
 class Car:
     def __init__(self):
@@ -104,21 +181,141 @@ class Car:
         self.image = pygame.transform.scale(img, (int(img.get_width()*0.2), int(img.get_height()*0.2)))
         self.rect = self.image.get_rect()
         self.y = get_ground_height(self.world_x) - self.rect.height
-        self.upgrades_images = []  # Store images of purchased upgrades
+        self.upgrades_images = []  # Store tuples of (image, z_index) for purchased upgrades
+        self.upgrade_instances = []  # Store upgrade script instances
+        
+        # Apply persistent upgrades when car is created
+        self.apply_persistent_upgrades()
+
+    def apply_persistent_upgrades(self):
+        """Apply all upgrades that were purchased previously"""
+        # Make sure upgrades are loaded
+        upgrades = load_upgrades()
+        
+        # Sort upgrades by z-index before applying
+        sorted_upgrades = sorted(upgrades, key=lambda x: x.z_index)
+        
+        # Reset stats first
+        self.base_damage = 10
+        self.damage_reduction = 0
+        self.speed_multiplier = 1.0
+        self.upgrades_images = []
+        self.upgrade_instances = []
+        
+        for upgrade in sorted_upgrades:
+            if upgrade.purchased:
+                print(f"Applying purchased upgrade: {upgrade.name}")  # Debug
+                # Apply the upgrade stats
+                self.base_damage += upgrade.car_damage
+                self.damage_reduction += upgrade.damage_reduction
+                self.speed_multiplier += upgrade.speed_increase
+                # Store with z-index
+                self.upgrades_images.append((upgrade.image, upgrade.z_index))
+                
+                # Load script if it has one
+                if upgrade.has_script:
+                    try:
+                        script_path = os.path.join(upgrade.folder, "script.py")
+                        if os.path.exists(script_path):
+                            spec = importlib.util.spec_from_file_location("upgrade_script", script_path)
+                            module = importlib.util.module_from_spec(spec)
+                            
+                            module.WIDTH = WIDTH
+                            module.HEIGHT = HEIGHT
+                            module.get_ground_height = get_ground_height
+                            module.money_ref = lambda: money
+                            module.screen = screen
+                            
+                            spec.loader.exec_module(module)
+                            
+                            upgrade_class_name = f"{upgrade.name.replace(' ', '')}Upgrade"
+                            if hasattr(module, upgrade_class_name):
+                                UpgradeClass = getattr(module, upgrade_class_name)
+                                instance = UpgradeClass(self)
+                                self.upgrade_instances.append(instance)
+                                upgrade.script_instance = instance
+                            elif hasattr(module, "UpgradeScript"):
+                                instance = module.UpgradeScript(self)
+                                self.upgrade_instances.append(instance)
+                                upgrade.script_instance = instance
+                    except Exception as e:
+                        print(f"Error loading upgrade script for {upgrade.name}: {e}")
+        
+        # Update car image with all upgrades
+        self.update_combined_image()
 
     def apply_upgrade(self, upgrade):
+        print(f"Purchasing upgrade: {upgrade.name}")  # Debug
         self.base_damage += upgrade.car_damage
         self.damage_reduction += upgrade.damage_reduction
         self.speed_multiplier += upgrade.speed_increase
-        self.upgrades_images.append(upgrade.image)
+        
+        # Store upgrade image with its z-index
+        self.upgrades_images.append((upgrade.image, upgrade.z_index))
+        
+        # Sort upgrades by z-index
+        self.upgrades_images.sort(key=lambda x: x[1])
+        
+        # Mark upgrade as purchased globally
+        upgrade.purchased = True
+        save_all_purchased_upgrades()  # Save ALL upgrades to file
+        
+        # Load and initialize upgrade script if it has one
+        if upgrade.has_script:
+            try:
+                script_path = os.path.join(upgrade.folder, "script.py")
+                if os.path.exists(script_path):
+                    # Dynamically import the script
+                    spec = importlib.util.spec_from_file_location("upgrade_script", script_path)
+                    module = importlib.util.module_from_spec(spec)
+                    
+                    # Inject necessary globals into the module
+                    module.WIDTH = WIDTH
+                    module.HEIGHT = HEIGHT
+                    module.get_ground_height = get_ground_height
+                    module.money_ref = lambda: money  # Reference to money variable
+                    module.screen = screen
+                    
+                    spec.loader.exec_module(module)
+                    
+                    # Look for a class named after the upgrade
+                    upgrade_class_name = f"{upgrade.name.replace(' ', '')}Upgrade"
+                    if hasattr(module, upgrade_class_name):
+                        UpgradeClass = getattr(module, upgrade_class_name)
+                        instance = UpgradeClass(self)
+                        self.upgrade_instances.append(instance)
+                        upgrade.script_instance = instance
+                    # Also check for generic "UpgradeScript" class
+                    elif hasattr(module, "UpgradeScript"):
+                        instance = module.UpgradeScript(self)
+                        self.upgrade_instances.append(instance)
+                        upgrade.script_instance = instance
+            except Exception as e:
+                print(f"Error loading upgrade script for {upgrade.name}: {e}")
+        
         self.update_combined_image()
+
+    def update_upgrades(self, keys, zombies):
+        """Update all active upgrade scripts"""
+        for upgrade_instance in self.upgrade_instances:
+            if hasattr(upgrade_instance, 'update'):
+                upgrade_instance.update(keys, zombies)
+
+    def draw_upgrades(self, cam_x):
+        """Draw all upgrade-related graphics"""
+        for upgrade_instance in self.upgrade_instances:
+            if hasattr(upgrade_instance, 'draw'):
+                upgrade_instance.draw(cam_x)
 
     def update_combined_image(self):
         scaled_base = pygame.transform.scale(self.base_image, (int(self.base_image.get_width()*0.2), int(self.base_image.get_height()*0.2)))
         combined = scaled_base.copy()
-        for up_img in self.upgrades_images:
+        
+        # Draw upgrades in order of z-index (lowest first, highest last)
+        for up_img, z_index in self.upgrades_images:
             up_scaled = pygame.transform.scale(up_img, (int(up_img.get_width()*0.2), int(up_img.get_height()*0.2)))
-            combined.blit(up_scaled, (0,0))
+            combined.blit(up_scaled, (0, 0))
+        
         self.image = combined
         self.rect = self.image.get_rect()
 
@@ -239,7 +436,12 @@ def garage(car):
         y_offset = 0
         for upgrade in upgrades:
             item_rect = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset + scroll_y, 230, 60)
-            pygame.draw.rect(screen, (80,80,80), item_rect)
+            # Different color for purchased upgrades
+            if upgrade.purchased:
+                pygame.draw.rect(screen, (50, 150, 50), item_rect)  # Green for purchased
+            else:
+                pygame.draw.rect(screen, (80,80,80), item_rect)
+                
             if item_rect.collidepoint(pygame.mouse.get_pos()):
                 pygame.draw.rect(screen, (120,120,120), item_rect)
 
@@ -249,9 +451,18 @@ def garage(car):
             img_y = item_rect.bottom - img.get_height()-15
             screen.blit(img, (img_x, img_y))
 
-            # Gray out if not enough money
-            text_color = WHITE if money >= upgrade.price else (150, 150, 150)
-            text = small_font.render(f"{upgrade.name} - ${upgrade.price}", True, text_color)
+            # Gray out if not enough money or already purchased
+            if upgrade.purchased:
+                text_color = (200, 200, 200)
+                status = " [PURCHASED]"
+            elif money >= upgrade.price:
+                text_color = WHITE
+                status = ""
+            else:
+                text_color = (150, 150, 150)
+                status = ""
+                
+            text = small_font.render(f"{upgrade.name} - ${upgrade.price}{status}", True, text_color)
             screen.blit(text, (item_rect.x + 90, item_rect.y + 15))
             y_offset += 70
 
@@ -276,11 +487,28 @@ def garage(car):
 
             # Preview image in popup
             temp_image = car.base_image.copy()
-            for up_img in car.upgrades_images:
+            
+            # Get all current upgrades sorted by z-index
+            current_upgrades = []
+            for up_img, z_index in car.upgrades_images:
+                # Find the upgrade object for this image
+                for up in upgrades:
+                    if up.image is up_img:
+                        current_upgrades.append((up_img, z_index))
+                        break
+            
+            # Add the new upgrade for preview
+            if confirmation_upgrade:
+                current_upgrades.append((confirmation_upgrade.image, confirmation_upgrade.z_index))
+            
+            # Sort by z-index
+            current_upgrades.sort(key=lambda x: x[1])
+            
+            # Draw all upgrades in order
+            for up_img, z_index in current_upgrades:
                 up_scaled = pygame.transform.scale(up_img, (int(up_img.get_width()*0.2), int(up_img.get_height()*0.2)))
                 temp_image.blit(up_scaled, (0,0))
-            up_scaled = pygame.transform.scale(confirmation_upgrade.image, (int(confirmation_upgrade.image.get_width()*0.2), int(confirmation_upgrade.image.get_height()*0.2)))
-            temp_image.blit(up_scaled, (0,0))
+            
             temp_image_scaled = pygame.transform.scale(temp_image, (int(temp_image.get_width()*3), int(temp_image.get_height()*3)))
             temp_rect = temp_image_scaled.get_rect(midbottom=(popup_rect.centerx, popup_rect.y + 150))
             screen.blit(temp_image_scaled, temp_rect)
@@ -304,7 +532,7 @@ def garage(car):
             elif e.type == pygame.MOUSEBUTTONDOWN:
                 if confirmation_active:
                     if btn_yes.collidepoint(e.pos):
-                        if money >= confirmation_upgrade.price:
+                        if money >= confirmation_upgrade.price and not confirmation_upgrade.purchased:
                             money -= confirmation_upgrade.price
                             confirmation_upgrade.purchased = True
                             car.apply_upgrade(confirmation_upgrade)
@@ -353,6 +581,98 @@ def draw_background(cam_x):
     screen.blit(background_img, (offset + bg_w, HEIGHT - bg_h))
 
 # ==============================
+# Simple Turret Script (backup in case script.py doesn't exist)
+# ==============================
+class SimpleTurret:
+    def __init__(self, car):
+        self.car = car
+        self.bullets = []
+        self.cooldown = 0
+        self.max_cooldown = 15  # frames between shots
+        self.bullet_speed = 8
+        
+    def update(self, keys, zombies):
+        # Decrease cooldown
+        if self.cooldown > 0:
+            self.cooldown -= 1
+            
+        # Shoot when E is pressed
+        if keys[pygame.K_e] and self.cooldown == 0:
+            self.shoot(zombies)
+            self.cooldown = self.max_cooldown
+            
+        # Update bullets
+        for bullet in self.bullets[:]:
+            bullet['x'] += bullet['dx']
+            bullet['y'] += bullet['dy']
+            
+            # Remove if off screen
+            if (bullet['x'] < -100 or bullet['x'] > WIDTH + 100 or 
+                bullet['y'] < -100 or bullet['y'] > HEIGHT + 100):
+                if bullet in self.bullets:
+                    self.bullets.remove(bullet)
+                    continue
+                    
+            # Check collision with zombies
+            bullet_rect = pygame.Rect(bullet['x'] - 3, bullet['y'] - 3, 6, 6)
+            for zombie in zombies:
+                if zombie.alive:
+                    # Zombie position on screen
+                    zombie_screen_x = zombie.x - self.car.world_x + WIDTH//3 - 11
+                    zombie_screen_y = get_ground_height(zombie.x) - 40
+                    zombie_rect = pygame.Rect(zombie_screen_x, zombie_screen_y, 22, 40)
+                    
+                    if bullet_rect.colliderect(zombie_rect):
+                        zombie.alive = False
+                        global money
+                        money += 15  # More money for shooting zombie
+                        if bullet in self.bullets:
+                            self.bullets.remove(bullet)
+                        break
+                        
+    def shoot(self, zombies):
+        if not zombies:
+            return
+            
+        # Find nearest zombie in front of car
+        nearest_zombie = None
+        min_distance = float('inf')
+        
+        for zombie in zombies:
+            if zombie.alive and zombie.x > self.car.world_x:
+                distance = zombie.x - self.car.world_x
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_zombie = zombie
+                    
+        if nearest_zombie:
+            # Calculate direction
+            start_x = WIDTH//3
+            start_y = self.car.y + self.car.rect.height//2
+            
+            target_x = nearest_zombie.x - self.car.world_x + WIDTH//3
+            target_y = get_ground_height(nearest_zombie.x) - 20
+            
+            dx = target_x - start_x
+            dy = target_y - start_y
+            length = max(0.1, math.sqrt(dx*dx + dy*dy))
+            
+            self.bullets.append({
+                'x': start_x,
+                'y': start_y,
+                'dx': dx/length * self.bullet_speed,
+                'dy': dy/length * self.bullet_speed
+            })
+            
+    def draw(self, cam_x):
+        # Draw bullets
+        for bullet in self.bullets:
+            pygame.draw.circle(screen, (255, 255, 0), 
+                             (int(bullet['x']), int(bullet['y'])), 5)
+            pygame.draw.circle(screen, (255, 200, 0), 
+                             (int(bullet['x']), int(bullet['y'])), 3)
+
+# ==============================
 # Main Game
 # ==============================
 def reset_car():
@@ -363,6 +683,9 @@ def reset_car():
     car.health = 40
     car.fuel = 100
     return car
+
+# Pre-load upgrades once at the start
+load_upgrades()
 
 car = reset_car()
 garage(car)
@@ -379,22 +702,39 @@ while running:
     # Update distance based on car's travel (200 is start position)
     distance = car.world_x - 200
     
+    # Update active upgrades (like turret)
+    car.update_upgrades(keys, zombies)
+    
     draw_ground(car.world_x)
     car.draw()
+    
+    # Draw upgrade effects (like bullets)
+    car.draw_upgrades(car.world_x)
 
     for z in zombies:
         z.update(car)
         z.draw(car.world_x)
 
     draw_health_bar(car)
-    ui = small_font.render(f"Distance: {int(distance)}  Fuel: {int(car.fuel)}  Money: {money}", True, BLACK)
+    
+    # Show shooting instruction if any upgrade has shooting capability
+    has_shooting = False
+    for upgrade_instance in car.upgrade_instances:
+        if hasattr(upgrade_instance, 'has_shooting') or hasattr(upgrade_instance, 'shoot'):
+            has_shooting = True
+            break
+    
+    if has_shooting:
+        ui = small_font.render(f"Distance: {int(distance)}  Fuel: {int(car.fuel)}  Money: {money}  [E] to shoot", True, BLACK)
+    else:
+        ui = small_font.render(f"Distance: {int(distance)}  Fuel: {int(car.fuel)}  Money: {money}", True, BLACK)
     screen.blit(ui, (20, 20))
 
     if distance >= 10000 or car.health <= 0 or car.fuel <= 0:
         distance = 0
         current_level += 1
         terrain_points.clear()
-        car = reset_car()
+        car = reset_car()  # This will reapply all purchased upgrades
         garage(car)
         zombies = spawn_zombies(current_level)
 
