@@ -9,10 +9,10 @@
   },
   "mustang.blade": {
     "purchased": true,
-    "equipped": false
+    "equipped": true
   },
   "mustang.chicken": {
     "purchased": true,
-    "equipped": false
+    "equipped": true
   }
 }
