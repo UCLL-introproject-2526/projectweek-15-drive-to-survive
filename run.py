@@ -51,7 +51,6 @@ AIR_FRICTION = 0.995
 TERRAIN_STEP = 10
 FUEL_DELAY = 5000
 fuel_empty_time = None
-FUEL_CONSUMPTION_RATE = 0.05
 
 # Current car selection
 current_car_type = "default"  # Default selected car
@@ -552,6 +551,7 @@ class Car:
         self.base_damage = 10
         self.damage_reduction = 0
         self.speed_multiplier = 1.0
+        self.fuel_consumption_rate = 0.08  # Slightly increased for better visual feedback
 
         # Load the base car image from current car type
         current_car = get_current_car_type()
@@ -762,13 +762,24 @@ class Car:
         self.rect = self.image.get_rect()
 
     def update(self, keys):
+        # Consume fuel when moving
+        fuel_consumed = False
+        
         if keys[pygame.K_RIGHT] and self.fuel > 0:
             self.speed += self.base_speed * self.speed_multiplier
-            self.fuel -= FUEL_CONSUMPTION_RATE
+            self.fuel -= self.fuel_consumption_rate
             self.fuel = max(self.fuel, 0)
+            fuel_consumed = True
+            
         if keys[pygame.K_LEFT] and self.fuel > 0:
             self.speed -= self.base_speed * self.speed_multiplier * 0.8
-            self.fuel -= FUEL_CONSUMPTION_RATE
+            self.fuel -= self.fuel_consumption_rate
+            self.fuel = max(self.fuel, 0)
+            fuel_consumed = True
+        
+        # Also consume a tiny amount of fuel when not moving but engine is "on" (for realism)
+        if not fuel_consumed and self.fuel > 0:
+            self.fuel -= self.fuel_consumption_rate * 0.1  # Idle consumption
             self.fuel = max(self.fuel, 0)
 
         ground_y = get_ground_height(int(self.world_x)) - self.rect.height
@@ -846,6 +857,33 @@ def draw_ground(cam_x):
     pts += [(WIDTH, HEIGHT), (0, HEIGHT)]
     pygame.draw.polygon(screen, GROUND, pts)
     pygame.draw.lines(screen, GROUND_DARK, False, pts[:-2], 3)
+
+# ==============================
+# Health & Fuel Bars
+# ==============================
+def draw_health_bar(car):
+    bar_width = 200
+    bar_height = 20
+    x = 20
+    y = 50
+    pygame.draw.rect(screen, HEALTH_BG, (x, y, bar_width, bar_height))
+    health_width = int((car.health / 40) * bar_width)
+    pygame.draw.rect(screen, HEALTH_FG, (x, y, health_width, bar_height))
+    pygame.draw.rect(screen, BLACK, (x, y, bar_width, bar_height), 2)
+    health_text = small_font.render(f"Health: {int(car.health)}/40", True, WHITE)
+    screen.blit(health_text, (x + 5, y - 25))
+
+def draw_fuel_bar(car):
+    bar_width = 200
+    bar_height = 20
+    x = 20
+    y = 110  # Positioned below health bar with some spacing
+    pygame.draw.rect(screen, (40, 40, 0), (x, y, bar_width, bar_height))  # Dark yellow/brown for empty
+    fuel_width = int((car.fuel / 100) * bar_width)
+    pygame.draw.rect(screen, (255, 200, 0), (x, y, fuel_width, bar_height))  # Bright yellow for fuel
+    pygame.draw.rect(screen, BLACK, (x, y, bar_width, bar_height), 2)
+    fuel_text = small_font.render(f"Fuel: {int(car.fuel)}%", True, WHITE)
+    screen.blit(fuel_text, (x + 5, y - 25))
 
 # ==============================
 # Garage with integrated car selection
@@ -1121,19 +1159,6 @@ def garage(car):
         pygame.display.flip()
 
 # ==============================
-# Health Bar
-# ==============================
-def draw_health_bar(car):
-    bar_width = 200
-    bar_height = 20
-    x = 20
-    y = 50
-    pygame.draw.rect(screen, HEALTH_BG, (x, y, bar_width, bar_height))
-    health_width = int((car.health / 40) * bar_width)
-    pygame.draw.rect(screen, HEALTH_FG, (x, y, health_width, bar_height))
-    pygame.draw.rect(screen, BLACK, (x, y, bar_width, bar_height), 2)
-
-# ==============================
 # Background
 # ==============================
 def draw_background(cam_x):
@@ -1284,7 +1309,9 @@ def main_game_loop():
             z.update(car)
             z.draw(car.world_x)
 
+        # Draw both health and fuel bars
         draw_health_bar(car)
+        draw_fuel_bar(car)
         
         # Show shooting instruction if any upgrade has shooting capability
         has_shooting = False
@@ -1293,13 +1320,40 @@ def main_game_loop():
                 has_shooting = True
                 break
         
+        # Update UI to remove fuel from the text since we have a fuel bar
+        # Position the text at the right side of the screen
         if has_shooting:
-            ui = small_font.render(f"Distance: {int(distance)}  Fuel: {int(car.fuel)}  Money: {money}  [E] to shoot", True, BLACK)
+            ui_text = f"Distance: {int(distance)}  Money: ${money}  [E] to shoot"
         else:
-            ui = small_font.render(f"Distance: {int(distance)}  Fuel: {int(car.fuel)}  Money: {money}", True, BLACK)
-        screen.blit(ui, (20, 20))
+            ui_text = f"Distance: {int(distance)}  Money: ${money}"
+        
+        ui = small_font.render(ui_text, True, BLACK)
+        # Position at top right corner with some padding
+        ui_rect = ui.get_rect()
+        ui_x = WIDTH - ui_rect.width - 20  # 20 pixels from right edge
+        ui_y = 20  # 20 pixels from top
+        screen.blit(ui, (ui_x, ui_y))
+        
+        # Show warning when fuel is low
+        if car.fuel < 30:
+            warning_text = small_font.render("LOW FUEL!", True, (255, 50, 50))
+            screen.blit(warning_text, (240, 85))  # Position near fuel bar
 
         if distance >= 10000 or car.health <= 0 or car.fuel <= 0:
+            # Show end game reason
+            if car.health <= 0:
+                reason = "HEALTH DEPLETED!"
+            elif car.fuel <= 0:
+                reason = "OUT OF FUEL!"
+            else:
+                reason = "LEVEL COMPLETE!"
+            
+            # Display reason for a moment
+            reason_text = font.render(reason, True, (255, 255, 0))
+            screen.blit(reason_text, (WIDTH//2 - reason_text.get_width()//2, HEIGHT//2))
+            pygame.display.flip()
+            pygame.time.delay(2000)  # Wait 2 seconds
+            
             distance = 0
             current_level += 1
             terrain_points.clear()
