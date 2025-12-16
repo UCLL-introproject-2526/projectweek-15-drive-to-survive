@@ -126,51 +126,33 @@ class Player:
         return self.health > 0
     
     def apply_upgrade(self, upgrade):
-        """Apply/equip an upgrade to the player"""
-        # Check if already equipped
-        if upgrade.equipped:
+        """Apply an upgrade to the player"""
+        # Check if already purchased
+        if upgrade in self.purchased_upgrades:
             return
         
         self.damage_reduction += upgrade.damage_reduction
         self.speed_multiplier += upgrade.speed_increase
-        if upgrade not in self.purchased_upgrades:
-            self.purchased_upgrades.append(upgrade)
-        upgrade.equipped = True
-        self.update_combined_image()
-    
-    def remove_upgrade(self, upgrade):
-        """Unequip an upgrade from the player (stays purchased)"""
-        if upgrade.equipped:
-            self.damage_reduction -= upgrade.damage_reduction
-            self.speed_multiplier -= upgrade.speed_increase
-            upgrade.equipped = False
-            self.update_combined_image()
-    
-    def reset_all_upgrades(self):
-        """Unequip all upgrades and reset all buffs to default"""
-        for upgrade in self.purchased_upgrades:
-            upgrade.equipped = False
-        self.damage_reduction = 0
-        self.speed_multiplier = 1.0
+        self.purchased_upgrades.append(upgrade)
         self.update_combined_image()
     
     def update_combined_image(self):
-        old_center = self.rect.center  # keep current position
-
+        """Use the latest upgrade image as the car image"""
         if self.purchased_upgrades:
+            # Gebruik de laatst gekochte upgrade als de auto image
             latest_upgrade = self.purchased_upgrades[-1]
-
-        # USE IMAGE AS-IS (no forced scaling)
-            self.__base_image = latest_upgrade.image.convert_alpha()
-
+            
+            # Check if this is the ramp upgrade and scale it differently
+            if "ramp" in latest_upgrade.name.lower():
+                up_scaled = pygame.transform.scale(latest_upgrade.image, (220, 200))
+            else:
+                up_scaled = pygame.transform.scale(latest_upgrade.image, (200, 200))
+            
+            self.__base_image = up_scaled
+            self.rect = self.__base_image.get_rect()
         else:
-        # back to original car image
+            # Als er geen upgrades zijn, gebruik de originele auto
             self.__create_image(self.__original_image_path)
-            self.__base_image = self.__base_image.convert_alpha()
-
-    # recreate rect but keep center
-        self.rect = self.__base_image.get_rect(center=old_center)
-
     
     def draw_fuel_bar(self, srf):
         """Draw fuel bar on screen"""
