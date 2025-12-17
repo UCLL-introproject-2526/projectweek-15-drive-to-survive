@@ -38,7 +38,7 @@ class Car:
             }
         else:
             self.controls = controls
-        self.base_speed = 0.12
+        self.base_speed = 0.11
         self.base_damage = 10
         self.damage_reduction = 0
         self.speed_multiplier = 1.0
@@ -209,7 +209,8 @@ class Car:
         # 'keys' is expected to be the sequence returned by pygame.key.get_pressed()
         fuel_consumed = False
         if keys[self.controls['accelerate_right']] and self.fuel > 0:
-            self.speed += self.base_speed * self.speed_multiplier
+            if self.speed < 9:
+                self.speed += self.base_speed * self.speed_multiplier
             self.fuel -= self.fuel_consumption_rate
             self.fuel = max(self.fuel, 0)
             fuel_consumed = True
