@@ -16,16 +16,43 @@ class TurretUpgrade:
         # Load shoot sound effect
         self.shoot_sound = None
         try:
-            sound_path = os.path.join("assets", "music", "kipje.mp3")
-            if os.path.exists(sound_path):
-                self.shoot_sound = pygame.mixer.Sound(sound_path)
-                self.shoot_sound.set_volume(0.3)  # Lower volume so it's not too loud
+            # Prefer browser-friendly formats first (wav/ogg), then mp3
+            candidates = [
+                os.path.join("assets", "music", "kipje.wav"),
+                os.path.join("assets", "music", "kipje.ogg"),
+                os.path.join("assets", "music", "kipje.mp3"),
+            ]
+            found = None
+            for p in candidates:
+                if os.path.exists(p):
+                    found = p
+                    break
+
+            if found:
+                try:
+                    # Ensure mixer is initialised (in browser this must happen after a user gesture)
+                    if not pygame.mixer.get_init():
+                        try:
+                            pygame.mixer.init()
+                        except Exception:
+                            pass
+
+                    # Try to load as a Sound object first
+                    self.shoot_sound = pygame.mixer.Sound(found)
+                    self.shoot_sound.set_volume(0.3)
+                except Exception as e:
+                    # In some environments Sound() fails for certain codecs; fall back to using music streaming
+                    print(f"Could not load chicken shoot as Sound ({found}): {e}; will try music-playback fallback.")
+                    self.shoot_sound = None
+                    self._music_fallback = found
             else:
-                # Try to synthesize a simple "pew" sound as fallback
+                # No file found; synthesize fallback
                 self.shoot_sound = self._create_shoot_sound()
+                self._music_fallback = None
         except Exception as e:
-            print(f"Could not load chicken shoot sound: {e}")
+            print(f"Could not load or synthesize chicken shoot sound: {e}")
             self.shoot_sound = None
+            self._music_fallback = None
         
     def update(self, keys, zombies):
         # Decrease cooldown
@@ -104,37 +131,31 @@ class TurretUpgrade:
     def _create_shoot_sound(self):
         """Create a simple synthesized shoot sound effect"""
         try:
-            # Create a short high-pitched "pop" sound
+            # Create a short high-pitched "pop" sound without numpy
             sample_rate = 22050
-            duration = 0.1  # 100ms
-            frequency = 800  # Hz
-            
-            import numpy as np
-            
-            # Generate samples
-            samples = int(sample_rate * duration)
-            wave = np.zeros(samples)
-            
-            for i in range(samples):
+            duration = 0.12  # 120ms
+            frequency = 900  # Hz
+            n_samples = int(sample_rate * duration)
+
+            import struct
+            buf = bytearray()
+            max_amp = int(0.3 * 32767)
+            for i in range(n_samples):
                 t = i / sample_rate
-                # Envelope: quick attack, exponential decay
-                envelope = math.exp(-15 * t)
-                # Two-tone for a "pop" effect
-                wave[i] = envelope * (
-                    0.5 * math.sin(2 * math.pi * frequency * t) +
-                    0.3 * math.sin(2 * math.pi * frequency * 1.5 * t)
-                )
-            
-            # Convert to 16-bit integers
-            wave = (wave * 32767).astype(np.int16)
-            
-            # Create stereo by duplicating
-            stereo_wave = np.column_stack((wave, wave))
-            
-            # Create pygame Sound from numpy array
-            sound = pygame.sndarray.make_sound(stereo_wave)
-            sound.set_volume(0.3)
-            return sound
+                envelope = math.exp(-12 * t)
+                sample = int(max_amp * envelope * (0.6 * math.sin(2.0 * math.pi * frequency * t) + 0.4 * math.sin(2.0 * math.pi * frequency * 1.6 * t)))
+                packed = struct.pack('<h', sample)
+                # stereo
+                buf.extend(packed)
+                buf.extend(packed)
+
+            try:
+                sound = pygame.mixer.Sound(buffer=bytes(buf))
+                sound.set_volume(0.3)
+                return sound
+            except Exception as e:
+                print(f"Failed to create pygame Sound from buffer: {e}")
+                return None
         except Exception as e:
             print(f"Could not synthesize shoot sound: {e}")
             return None
@@ -156,11 +177,31 @@ class TurretUpgrade:
                     
         if nearest_zombie:
             # Play shoot sound only when we have a target
-            if self.shoot_sound:
-                try:
+            try:
+                if self.shoot_sound:
+                    # Ensure mixer ready
+                    if not pygame.mixer.get_init():
+                        try:
+                            pygame.mixer.init()
+                        except Exception:
+                            pass
                     self.shoot_sound.play()
-                except Exception:
-                    pass
+                elif getattr(self, '_music_fallback', None):
+                    # Fallback: use music channel to play the short file (may interrupt music)
+                    try:
+                        if not pygame.mixer.get_init():
+                            try:
+                                pygame.mixer.init()
+                            except Exception:
+                                pass
+                        pygame.mixer.music.load(self._music_fallback)
+                        pygame.mixer.music.set_volume(0.3)
+                        pygame.mixer.music.play(0)
+                    except Exception as e:
+                        # give up silently
+                        print(f"Failed to play chicken fallback via music: {e}")
+            except Exception:
+                pass
             
             # Calculate direction
             start_x = WIDTH//3
