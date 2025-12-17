@@ -8,3 +8,6 @@ def reset_state():
     money = 1000
     distance = 0
     current_level = 1
+    # Reset level manager when resetting game state
+    from levels import reset_level_manager
+    reset_level_manager()

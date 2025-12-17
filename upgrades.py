@@ -209,12 +209,35 @@ class SimpleTurret:
             bullet_rect = pygame.Rect(bullet['x'] - 3, bullet['y'] - 3, 6, 6)
             for zombie in zombies:
                 if zombie.alive:
-                    zombie_screen_x = zombie.x - self.car.world_x + 100
+                    # Use zombie sprite width for hitbox if available (keep previous y behavior)
+                    if hasattr(zombie, 'rect'):
+                        z_w = zombie.rect.width
+                    else:
+                        z_w = 22
+
+                    zombie_screen_x = zombie.x - self.car.world_x + 100 - z_w//2
                     zombie_screen_y = 0
-                    zombie_rect = pygame.Rect(zombie_screen_x, zombie_screen_y, 22, 40)
+                    zombie_rect = pygame.Rect(zombie_screen_x, zombie_screen_y, z_w, 40)
                     if bullet_rect.colliderect(zombie_rect):
-                        zombie.alive = False
-                        # reward handled by caller
+                        # Apply bullet damage if zombie exposes `health`
+                        killed = False
+                        if hasattr(zombie, 'health'):
+                            try:
+                                zombie.health -= 20
+                            except Exception:
+                                pass
+                            if getattr(zombie, 'health', 0) <= 0:
+                                # Do not restart death animation if already dying
+                                if not getattr(zombie, 'dying', False):
+                                    zombie.dying = True
+                                    zombie.death_timer = 0
+                                    zombie.current_frame = 0
+                                killed = True
+                        else:
+                            zombie.alive = False
+                            killed = True
+
+                        # Remove bullet regardless; caller awards money if needed
                         if bullet in self.bullets:
                             self.bullets.remove(bullet)
                         break
