@@ -2,8 +2,9 @@ import pygame
 import sys
 import os
 from upgrades import save_all_upgrades_status
+import asyncio
 
-def credits_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE):
+async def credits_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE):
     """Display credits screen"""
     # Load background image
     try:
@@ -46,6 +47,7 @@ def credits_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE):
     running = True
     while running:
         clock.tick(60)
+        await asyncio.sleep(0)
         
         # Draw background
         if background:
@@ -95,3 +97,4 @@ def credits_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE):
                     running = False
         
         pygame.display.flip()
+    

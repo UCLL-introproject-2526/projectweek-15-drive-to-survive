@@ -3,6 +3,7 @@ import sys
 import json
 import os
 from upgrades import save_all_upgrades_status
+import asyncio
 
 
 def load_settings():
@@ -41,7 +42,7 @@ def save_settings(music_volume, sfx_volume, controls):
         print(f"Error saving settings: {e}")
 
 
-def settings_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE, AUDIO_ENABLED):
+async def settings_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE, AUDIO_ENABLED):
     """Display settings screen"""
     # Load background image
     try:
@@ -87,6 +88,7 @@ def settings_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE, AUDIO
     
     while running:
         clock.tick(60)
+        await asyncio.sleep(0)
         mouse_pos = pygame.mouse.get_pos()
         
         # Draw background
