@@ -15,8 +15,9 @@ class TurretUpgrade:
         if self.cooldown > 0:
             self.cooldown -= 1
             
-        # Shoot when E is pressed
-        if keys[pygame.K_e] and self.cooldown == 0:
+        # Shoot when the shoot key is pressed (use car's control settings)
+        shoot_key = self.car.controls.get('shoot', pygame.K_e)
+        if keys[shoot_key] and self.cooldown == 0:
             self.shoot(zombies)
             self.cooldown = self.max_cooldown
             

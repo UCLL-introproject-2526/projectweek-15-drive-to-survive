@@ -20,7 +20,7 @@ LAUNCH_FACTOR = 0.7  # fraction of forward speed converted into upward velocity
 ANGULAR_FACTOR = 2.0  # multiplier to convert forward speed to angular velocity (deg per frame per speed unit)
 
 class Car:
-    def __init__(self, apply_upgrades_now=True):
+    def __init__(self, apply_upgrades_now=True, controls=None):
         self.world_x = 200
         self.speed = 0
         self.vspeed = 0
@@ -28,6 +28,16 @@ class Car:
         self.air_angle = None
         self.health = 40
         self.fuel = 100
+        
+        # Store controls (use defaults if not provided)
+        if controls is None:
+            self.controls = {
+                'accelerate_right': pygame.K_RIGHT,
+                'accelerate_left': pygame.K_LEFT,
+                'shoot': pygame.K_e
+            }
+        else:
+            self.controls = controls
         self.base_speed = 0.12
         self.base_damage = 10
         self.damage_reduction = 0
@@ -167,6 +177,7 @@ class Car:
     def update_upgrades(self, keys, zombies):
         for upgrade_instance in self.upgrade_instances:
             if hasattr(upgrade_instance, 'update'):
+                # Pass car reference so upgrades can access controls
                 upgrade_instance.update(keys, zombies)
 
     def draw_upgrades(self, cam_x, screen):
@@ -197,12 +208,12 @@ class Car:
     def update(self, keys):
         # 'keys' is expected to be the sequence returned by pygame.key.get_pressed()
         fuel_consumed = False
-        if keys[pygame.K_RIGHT] and self.fuel > 0:
+        if keys[self.controls['accelerate_right']] and self.fuel > 0:
             self.speed += self.base_speed * self.speed_multiplier
             self.fuel -= self.fuel_consumption_rate
             self.fuel = max(self.fuel, 0)
             fuel_consumed = True
-        if keys[pygame.K_LEFT] and self.fuel > 0:
+        if keys[self.controls['accelerate_left']] and self.fuel > 0:
             self.speed -= self.base_speed * self.speed_multiplier * 0.8
             self.fuel -= self.fuel_consumption_rate
             self.fuel = max(self.fuel, 0)
