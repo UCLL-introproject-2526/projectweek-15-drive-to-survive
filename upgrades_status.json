@@ -1,27 +1,27 @@
 {
   "Default.Ramp": {
-    "purchased": true,
-    "equipped": true
+    "purchased": false,
+    "equipped": false
   },
   "current_car": "mustang",
   "default.Ramp": {
-    "purchased": true,
-    "equipped": true
+    "purchased": false,
+    "equipped": false
   },
   "default.Turret": {
-    "purchased": true,
-    "equipped": true
+    "purchased": false,
+    "equipped": false
   },
   "mustang.blade": {
-    "purchased": true,
-    "equipped": true
+    "purchased": false,
+    "equipped": false
   },
   "mustang.chicken": {
-    "purchased": true,
-    "equipped": true
+    "purchased": false,
+    "equipped": false
   },
   "Default.Turret": {
-    "purchased": true,
-    "equipped": true
+    "purchased": false,
+    "equipped": false
   }
 }
