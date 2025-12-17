@@ -1,5 +1,6 @@
 import pygame
 import math
+import os
 
 class TurretUpgrade:
     def __init__(self, car):
@@ -9,6 +10,20 @@ class TurretUpgrade:
         self.max_cooldown = 15  # frames between shots
         self.bullet_speed = 8
         self.bullet_damage = 20
+        
+        # Load shoot sound effect
+        self.shoot_sound = None
+        try:
+            sound_path = os.path.join("assets", "music", "kipje.mp3")
+            if os.path.exists(sound_path):
+                self.shoot_sound = pygame.mixer.Sound(sound_path)
+                self.shoot_sound.set_volume(0.3)  # Lower volume so it's not too loud
+            else:
+                # Try to synthesize a simple "pew" sound as fallback
+                self.shoot_sound = self._create_shoot_sound()
+        except Exception as e:
+            print(f"Could not load chicken shoot sound: {e}")
+            self.shoot_sound = None
         
     def update(self, keys, zombies):
         # Decrease cooldown
@@ -82,11 +97,49 @@ class TurretUpgrade:
                         if bullet in self.bullets:
                             self.bullets.remove(bullet)
                         break
+    
+    def _create_shoot_sound(self):
+        """Create a simple synthesized shoot sound effect"""
+        try:
+            # Create a short high-pitched "pop" sound
+            sample_rate = 22050
+            duration = 0.1  # 100ms
+            frequency = 800  # Hz
+            
+            import numpy as np
+            
+            # Generate samples
+            samples = int(sample_rate * duration)
+            wave = np.zeros(samples)
+            
+            for i in range(samples):
+                t = i / sample_rate
+                # Envelope: quick attack, exponential decay
+                envelope = math.exp(-15 * t)
+                # Two-tone for a "pop" effect
+                wave[i] = envelope * (
+                    0.5 * math.sin(2 * math.pi * frequency * t) +
+                    0.3 * math.sin(2 * math.pi * frequency * 1.5 * t)
+                )
+            
+            # Convert to 16-bit integers
+            wave = (wave * 32767).astype(np.int16)
+            
+            # Create stereo by duplicating
+            stereo_wave = np.column_stack((wave, wave))
+            
+            # Create pygame Sound from numpy array
+            sound = pygame.sndarray.make_sound(stereo_wave)
+            sound.set_volume(0.3)
+            return sound
+        except Exception as e:
+            print(f"Could not synthesize shoot sound: {e}")
+            return None
                         
     def shoot(self, zombies):
         if not zombies:
             return
-            
+        
         # Find nearest zombie in front of car
         nearest_zombie = None
         min_distance = float('inf')
@@ -99,6 +152,13 @@ class TurretUpgrade:
                     nearest_zombie = zombie
                     
         if nearest_zombie:
+            # Play shoot sound only when we have a target
+            if self.shoot_sound:
+                try:
+                    self.shoot_sound.play()
+                except Exception:
+                    pass
+            
             # Calculate direction
             start_x = WIDTH//3
             start_y = self.car.y + self.car.rect.height//2
