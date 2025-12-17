@@ -190,13 +190,16 @@ class SimpleTurret:
         self.cooldown = 0
         self.max_cooldown = 15
         self.bullet_speed = 8
+        self.ammo = 5  # Starting ammunition
+        self.has_shooting = True  # Flag for UI detection
 
     def update(self, keys, zombies):
         if self.cooldown > 0:
             self.cooldown -= 1
-        if keys.get('e') and self.cooldown == 0:
+        if keys.get('e') and self.cooldown == 0 and self.ammo > 0:
             self.shoot(zombies)
             self.cooldown = self.max_cooldown
+            self.ammo -= 1
 
         for bullet in self.bullets[:]:
             bullet['x'] += bullet['dx']

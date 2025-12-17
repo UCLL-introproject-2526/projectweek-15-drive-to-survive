@@ -537,15 +537,17 @@ async def main_game_loop(controls=None):
         
         # Show shooting instruction if any upgrade has shooting capability
         has_shooting = False
+        shooting_upgrade = None
         for upgrade_instance in car.upgrade_instances:
             if hasattr(upgrade_instance, 'has_shooting') or hasattr(upgrade_instance, 'shoot'):
                 has_shooting = True
+                shooting_upgrade = upgrade_instance
                 break
         
-        # Update UI to remove fuel from the text since we have a fuel bar
+        # Update UI to show ammo if player has a turret
         # Position the text at the right side of the screen
-        if has_shooting:
-            ui_text = f"Money: ${state.money}"
+        if has_shooting and shooting_upgrade and hasattr(shooting_upgrade, 'ammo'):
+            ui_text = f"Money: ${state.money}  |  Ammo: {shooting_upgrade.ammo}"
         else:
             ui_text = f"Money: ${state.money}"
         
