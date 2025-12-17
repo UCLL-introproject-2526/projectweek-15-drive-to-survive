@@ -47,7 +47,7 @@ class CarType:
 
         # upgrades for this car will be loaded by upgrades module as needed
 
-def load_car_types(cars_folder="cars"):
+def load_car_types(cars_folder="assets/cars"):
     global ALL_CAR_TYPES, current_car_type
     ALL_CAR_TYPES.clear()
     car_types = []

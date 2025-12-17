@@ -1,0 +1,14 @@
+{
+  "name": "blade",
+  "description": "ads a blade to the front ",
+
+  "z-index": 2,
+  "car_damage": 5,
+  "damage_reduction": 5,
+  "speed_increase": 0.05,
+  "price": 100,
+
+  "author": "Victor",
+  "version": "1.0.0",
+  "dependencies": []
+}

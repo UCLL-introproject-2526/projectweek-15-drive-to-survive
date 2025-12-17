@@ -87,8 +87,8 @@ class Zombie:
         self.health = level_manager.get_zombie_health(level, base_health)
         
         # Load animations using the correct relative paths
-        walk_path = os.path.join("images", "normal-zombie")
-        death_path = os.path.join("images", "normal-zombie-damaged")
+        walk_path = os.path.join("assets", "images", "normal-zombie")
+        death_path = os.path.join("assets", "images", "normal-zombie-damaged")
 
         self.walk_frames = self.load_zombie_animation(walk_path, "Zombie1-ezgif.com-crop")
         self.death_frames = self.load_zombie_animation(death_path, "zombie1Damaged-ezgif.com-crop")
@@ -198,8 +198,8 @@ class fatZombie:
         base_health = 100  # Fat zombies have more health
         self.health = level_manager.get_zombie_health(level, base_health)
         
-        walk_path = os.path.join("images", "fat-zombie")
-        death_path = os.path.join("images", "fat-zombie-damaged")
+        walk_path = os.path.join("assets", "images", "fat-zombie")
+        death_path = os.path.join("assets", "images", "fat-zombie-damaged")
 
         # Use cached loader to avoid repeated disk loads
         self.walk_frames = load_zombie_animation_cached(walk_path, "fatzombie3-ezgif.com-crop")

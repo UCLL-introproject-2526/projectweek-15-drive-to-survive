@@ -3,6 +3,7 @@ import sys
 import state
 from car_types import get_car_type_list, get_current_car_type, set_current_car_type
 from upgrades import load_upgrades, save_all_upgrades_status
+import asyncio
 
 
 class ArrowButton:
@@ -49,7 +50,7 @@ class ArrowButton:
         pygame.draw.polygon(surface, BLACK, points)
 
 
-def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg, 
+async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg, 
            stop_engine_sound, play_menu_music, AUDIO_ENABLED, _menu_music_loaded,
            WHITE, BUTTON, BUTTON_HOVER, UPGRADE_BG, EQUIPPED_COLOR, PURCHASED_COLOR):
     """Display garage with car selection and upgrade menu
@@ -105,6 +106,7 @@ def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
 
     while running:
         clock.tick(60)
+        await asyncio.sleep(0)
         screen.blit(garage_bg, (0,0))
 
         # Back to menu button in top left

@@ -3,7 +3,7 @@
     "purchased": true,
     "equipped": true
   },
-  "current_car": "mustang",
+  "current_car": "default",
   "default.Ramp": {
     "purchased": true,
     "equipped": true
