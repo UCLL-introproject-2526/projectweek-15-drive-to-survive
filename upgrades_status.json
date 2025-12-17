@@ -1,16 +1,16 @@
 {
   "Default.Ramp": {
     "purchased": true,
-    "equipped": true
+    "equipped": false
   },
   "current_car": "default",
   "default.Ramp": {
     "purchased": true,
-    "equipped": true
+    "equipped": false
   },
   "default.Turret": {
     "purchased": true,
-    "equipped": true
+    "equipped": false
   },
   "mustang.blade": {
     "purchased": true,
@@ -22,6 +22,6 @@
   },
   "Default.Turret": {
     "purchased": true,
-    "equipped": true
+    "equipped": false
   }
 }

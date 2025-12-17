@@ -43,6 +43,33 @@ def save_settings(music_volume, sfx_volume, controls):
 
 def settings_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE, AUDIO_ENABLED):
     """Display settings screen"""
+    # Load background image
+    try:
+        background = pygame.image.load("assets/background/Background.png").convert()
+        background = pygame.transform.scale(background, (WIDTH, HEIGHT))
+        # Darken the background for better text visibility
+        dark_overlay = pygame.Surface((WIDTH, HEIGHT))
+        dark_overlay.set_alpha(180)
+        dark_overlay.fill((0, 0, 0))
+    except:
+        background = None
+        dark_overlay = None
+    
+    # Create fonts for different text styles
+    title_font = pygame.font.SysFont("arial", 48, bold=True)
+    subtitle_font = pygame.font.SysFont("arial", 28, bold=True)
+    label_font = pygame.font.SysFont("arial", 22)
+    info_font = pygame.font.SysFont("arial", 18, italic=True)
+    
+    # Colors
+    TITLE_COLOR = (255, 215, 0)  # Gold
+    SUBTITLE_COLOR = (255, 255, 100)  # Light yellow
+    LABEL_COLOR = (220, 220, 220)  # Light gray
+    INFO_COLOR = (150, 150, 200)  # Light blue
+    BUTTON_COLOR = (70, 70, 120)
+    BUTTON_HOVER = (100, 100, 160)
+    BUTTON_SELECTED = (150, 150, 50)
+    
     running = True
     
     # Load current settings
@@ -62,51 +89,87 @@ def settings_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE, AUDIO
         clock.tick(60)
         mouse_pos = pygame.mouse.get_pos()
         
-        # Fill background
-        screen.fill((30, 30, 50))
+        # Draw background
+        if background:
+            screen.blit(background, (0, 0))
+            if dark_overlay:
+                screen.blit(dark_overlay, (0, 0))
+        else:
+            screen.fill((30, 30, 50))
         
-        # Settings text
-        title = font.render("Settings", True, WHITE)
-        screen.blit(title, (WIDTH//2 - title.get_width()//2, 50))
+        # Draw decorative border
+        border_color = (100, 100, 150)
+        pygame.draw.rect(screen, border_color, (40, 40, WIDTH - 80, HEIGHT - 80), 3, border_radius=15)
+        
+        # Settings title with shadow
+        title = title_font.render("Settings", True, TITLE_COLOR)
+        title_rect = title.get_rect(center=(WIDTH//2, 70))
+        # Shadow
+        shadow = title.copy()
+        shadow.set_alpha(100)
+        screen.blit(shadow, (title_rect.x + 2, title_rect.y + 2))
+        screen.blit(title, title_rect)
+        
+        screen.blit(title, title_rect)
         
         # Audio section
-        y_offset = 120
-        audio_title = small_font.render("Audio:", True, WHITE)
-        screen.blit(audio_title, (100, y_offset))
-        y_offset += 40
+        y_offset = 140
+        audio_title = subtitle_font.render("Audio", True, SUBTITLE_COLOR)
+        audio_rect = audio_title.get_rect(center=(WIDTH//2, y_offset))
+        # Shadow
+        shadow = audio_title.copy()
+        shadow.set_alpha(100)
+        screen.blit(shadow, (audio_rect.x + 2, audio_rect.y + 2))
+        screen.blit(audio_title, audio_rect)
+        y_offset += 50
         
         # Volume controls
-        music_label = small_font.render(f"Music Volume: {int(music_volume * 100)}%", True, WHITE)
-        screen.blit(music_label, (120, y_offset))
+        music_label = label_font.render(f"Music Volume: {int(music_volume * 100)}%", True, LABEL_COLOR)
+        label_x = WIDTH//2 - 200
+        screen.blit(music_label, (label_x, y_offset))
         
-        # Music volume slider
-        slider_x = 350
-        slider_y = y_offset + 5
-        slider_width = 200
-        slider_height = 10
-        pygame.draw.rect(screen, (100, 100, 100), (slider_x, slider_y, slider_width, slider_height))
-        pygame.draw.rect(screen, (200, 200, 200), (slider_x, slider_y, int(slider_width * music_volume), slider_height))
-        pygame.draw.circle(screen, WHITE, (int(slider_x + slider_width * music_volume), slider_y + slider_height//2), 8)
+        # Music volume slider with improved style
+        slider_width = 250
+        slider_x = WIDTH//2 - slider_width//2
+        slider_y = y_offset + 30
+        slider_height = 12
+        # Slider background
+        pygame.draw.rect(screen, (50, 50, 70), (slider_x, slider_y, slider_width, slider_height), border_radius=6)
+        # Slider fill
+        pygame.draw.rect(screen, (100, 200, 100), (slider_x, slider_y, int(slider_width * music_volume), slider_height), border_radius=6)
+        # Slider handle
+        pygame.draw.circle(screen, (200, 255, 200), (int(slider_x + slider_width * music_volume), slider_y + slider_height//2), 10)
+        pygame.draw.circle(screen, WHITE, (int(slider_x + slider_width * music_volume), slider_y + slider_height//2), 10, 2)
         music_slider_rect = pygame.Rect(slider_x - 10, slider_y - 10, slider_width + 20, slider_height + 20)
-        
-        y_offset += 40
-        
-        sfx_label = small_font.render(f"SFX Volume: {int(sfx_volume * 100)}%", True, WHITE)
-        screen.blit(sfx_label, (120, y_offset))
-        
-        # SFX volume slider
-        slider_y = y_offset + 5
-        pygame.draw.rect(screen, (100, 100, 100), (slider_x, slider_y, slider_width, slider_height))
-        pygame.draw.rect(screen, (200, 200, 200), (slider_x, slider_y, int(slider_width * sfx_volume), slider_height))
-        pygame.draw.circle(screen, WHITE, (int(slider_x + slider_width * sfx_volume), slider_y + slider_height//2), 8)
-        sfx_slider_rect = pygame.Rect(slider_x - 10, slider_y - 10, slider_width + 20, slider_height + 20)
         
         y_offset += 60
         
+        sfx_label = label_font.render(f"SFX Volume: {int(sfx_volume * 100)}%", True, LABEL_COLOR)
+        screen.blit(sfx_label, (label_x, y_offset))
+        
+        # SFX volume slider with improved style
+        slider_x = WIDTH//2 - slider_width//2
+        slider_y = y_offset + 30
+        # Slider background
+        pygame.draw.rect(screen, (50, 50, 70), (slider_x, slider_y, slider_width, slider_height), border_radius=6)
+        # Slider fill
+        pygame.draw.rect(screen, (100, 150, 200), (slider_x, slider_y, int(slider_width * sfx_volume), slider_height), border_radius=6)
+        # Slider handle
+        pygame.draw.circle(screen, (150, 200, 255), (int(slider_x + slider_width * sfx_volume), slider_y + slider_height//2), 10)
+        pygame.draw.circle(screen, WHITE, (int(slider_x + slider_width * sfx_volume), slider_y + slider_height//2), 10, 2)
+        sfx_slider_rect = pygame.Rect(slider_x - 10, slider_y - 10, slider_width + 20, slider_height + 20)
+        
+        y_offset += 75
+        
         # Controls section
-        controls_title = small_font.render("Control Customization:", True, WHITE)
-        screen.blit(controls_title, (100, y_offset))
-        y_offset += 40
+        controls_title = subtitle_font.render("Control Customization", True, SUBTITLE_COLOR)
+        controls_rect = controls_title.get_rect(center=(WIDTH//2, y_offset))
+        # Shadow
+        shadow = controls_title.copy()
+        shadow.set_alpha(100)
+        screen.blit(shadow, (controls_rect.x + 2, controls_rect.y + 2))
+        screen.blit(controls_title, controls_rect)
+        y_offset += 50
         
         # Display controls
         control_labels = {
@@ -118,33 +181,47 @@ def settings_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE, AUDIO
         control_rects = {}
         for key, label in control_labels.items():
             key_name = pygame.key.name(controls[key]).upper()
-            control_text = small_font.render(f"{label}: {key_name}", True, WHITE)
             
             # Highlight if this control is being remapped
             if selected_control == key:
-                control_text = small_font.render(f"{label}: Press a key...", True, (255, 255, 0))
+                control_text = label_font.render(f"{label}: Press a key...", True, (255, 255, 100))
+            else:
+                control_text = label_font.render(f"{label}: {key_name}", True, LABEL_COLOR)
             
-            rect = control_text.get_rect(topleft=(120, y_offset))
-            control_rects[key] = rect.inflate(20, 10)
+            # Center the control button
+            text_rect = control_text.get_rect(center=(WIDTH//2, y_offset + 15))
+            control_rects[key] = text_rect.inflate(40, 20)
             
-            # Draw button background
-            color = (80, 80, 120) if control_rects[key].collidepoint(mouse_pos) else (50, 50, 80)
+            # Draw button background with improved style
             if selected_control == key:
-                color = (120, 120, 0)
-            pygame.draw.rect(screen, color, control_rects[key], border_radius=5)
-            pygame.draw.rect(screen, WHITE, control_rects[key], 2, border_radius=5)
+                color = BUTTON_SELECTED
+            elif control_rects[key].collidepoint(mouse_pos):
+                color = BUTTON_HOVER
+            else:
+                color = BUTTON_COLOR
             
-            screen.blit(control_text, (120, y_offset))
-            y_offset += 45
+            pygame.draw.rect(screen, color, control_rects[key], border_radius=8)
+            pygame.draw.rect(screen, (180, 180, 220), control_rects[key], 2, border_radius=8)
+            
+            screen.blit(control_text, text_rect)
+            y_offset += 50
         
-        # Instructions
-        y_offset += 20
-        instruction = small_font.render("Click on a control to remap it", True, (150, 150, 150))
-        screen.blit(instruction, (WIDTH//2 - instruction.get_width()//2, y_offset))
+        # Instructions with shadow
+        y_offset += 10
+        instruction = info_font.render("Click on a control to remap it", True, INFO_COLOR)
+        instr_rect = instruction.get_rect(center=(WIDTH//2, y_offset))
+        shadow = instruction.copy()
+        shadow.set_alpha(80)
+        screen.blit(shadow, (instr_rect.x + 1, instr_rect.y + 1))
+        screen.blit(instruction, instr_rect)
         
-        # Exit instruction
-        exit_text = small_font.render("Press ESC to return", True, WHITE)
-        screen.blit(exit_text, (WIDTH//2 - exit_text.get_width()//2, HEIGHT - 50))
+        # Exit instruction with shadow (at bottom)
+        exit_text = info_font.render("Press ESC to save and return", True, INFO_COLOR)
+        exit_rect = exit_text.get_rect(center=(WIDTH//2, HEIGHT - 20))
+        shadow = exit_text.copy()
+        shadow.set_alpha(80)
+        screen.blit(shadow, (exit_rect.x + 1, exit_rect.y + 1))
+        screen.blit(exit_text, exit_rect)
         
         # Event handling
         for e in pygame.event.get():

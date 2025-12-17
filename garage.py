@@ -52,7 +52,11 @@ class ArrowButton:
 def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg, 
            stop_engine_sound, play_menu_music, AUDIO_ENABLED, _menu_music_loaded,
            WHITE, BUTTON, BUTTON_HOVER, UPGRADE_BG, EQUIPPED_COLOR, PURCHASED_COLOR):
-    """Display garage with car selection and upgrade menu"""
+    """Display garage with car selection and upgrade menu
+    
+    Returns:
+        str: 'start_game' to start the game, 'back_to_menu' to return to main menu
+    """
     # Stop engine sound when entering garage
     stop_engine_sound()
     
@@ -64,7 +68,7 @@ def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
     car_types_list = get_car_type_list()
     if not car_types_list:
         print("ERROR: No car types found!")
-        return
+        return 'back_to_menu'
 
     # Vind de index van de huidige auto
     current_index = 0
@@ -102,6 +106,14 @@ def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
     while running:
         clock.tick(60)
         screen.blit(garage_bg, (0,0))
+
+        # Back to menu button in top left
+        btn_back = pygame.Rect(20, 20, 150, 40)
+        color = BUTTON_HOVER if btn_back.collidepoint(pygame.mouse.get_pos()) else BUTTON
+        pygame.draw.rect(screen, color, btn_back, border_radius=10)
+        pygame.draw.rect(screen, WHITE, btn_back, 2, border_radius=10)
+        back_text = small_font.render("Back to Menu", True, WHITE)
+        screen.blit(back_text, (btn_back.centerx - back_text.get_width()//2, btn_back.centery - back_text.get_height()//2))
 
         # Show current car type
         current_car = get_current_car_type()
@@ -245,7 +257,11 @@ def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                     if btn_next.collidepoint(e.pos):
                         # SAVE ALL STATUS BEFORE STARTING LEVEL
                         save_all_upgrades_status()
-                        running = False
+                        return 'start_game'
+                    elif btn_back.collidepoint(e.pos):
+                        # SAVE ALL STATUS BEFORE GOING BACK TO MENU
+                        save_all_upgrades_status()
+                        return 'back_to_menu'
                     
                     # Check arrow clicks for car selection
                     if left_arrow.is_clicked(pygame.mouse.get_pos(), pygame.mouse.get_pressed()[0]):

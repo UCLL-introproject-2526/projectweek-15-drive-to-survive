@@ -492,9 +492,12 @@ def main_game_loop(controls=None):
             set_current_level(state.current_level)
             clear_terrain()
             car = reset_car(controls)  # This will reapply all purchased upgrades
-            garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
+            garage_result = garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                    audio_manager.stop_engine_sound, audio_manager.play_menu_music, audio_manager.AUDIO_ENABLED, audio_manager._menu_music_loaded,
                    WHITE, BUTTON, BUTTON_HOVER, UPGRADE_BG, EQUIPPED_COLOR, PURCHASED_COLOR)
+            # If they went back to menu, exit the game loop
+            if garage_result == 'back_to_menu':
+                running = False
             zombies = spawn_zombies(state.current_level) or []
 
         for e in pygame.event.get():
@@ -583,11 +586,13 @@ def main():
             if action == 'start_game':
                 # Go to garage first (which now includes car selection)
                 car = Car(apply_upgrades_now=False, controls=game_controls)  # Don't apply upgrades yet
-                garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
+                garage_result = garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                        audio_manager.stop_engine_sound, audio_manager.play_menu_music, audio_manager.AUDIO_ENABLED, audio_manager._menu_music_loaded,
                        WHITE, BUTTON, BUTTON_HOVER, UPGRADE_BG, EQUIPPED_COLOR, PURCHASED_COLOR)
-                # Then start the main game
-                game_state = "main_game"
+                # Then start the main game only if they chose to start
+                if garage_result == 'start_game':
+                    game_state = "main_game"
+                # Otherwise stay on start_screen
             elif action == 'credits':
                 game_state = "credits"
             elif action == 'settings':
