@@ -424,7 +424,7 @@ def reset_car(controls=None):
 async def main_game_loop(controls=None):
     """Main game loop after starting from garage"""
     # Show level intro screen
-    show_level_intro(state.current_level)
+    await show_level_intro(state.current_level)
     
     car = reset_car(controls)
     zombies = spawn_zombies(state.current_level) or []
@@ -545,9 +545,9 @@ async def main_game_loop(controls=None):
         # Update UI to remove fuel from the text since we have a fuel bar
         # Position the text at the right side of the screen
         if has_shooting:
-            ui_text = f"Distance: {int(state.distance)}  Money: ${state.money}"
+            ui_text = f"Money: ${state.money}"
         else:
-            ui_text = f"Distance: {int(state.distance)}  Money: ${state.money}"
+            ui_text = f"Money: ${state.money}"
         
         ui = small_font.render(ui_text, True, BLACK)
         # Position at top right corner with some padding

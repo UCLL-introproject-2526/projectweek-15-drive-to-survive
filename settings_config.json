@@ -1,9 +1,9 @@
 {
-  "music_volume": 0.632,
-  "sfx_volume": 0.596,
+  "music_volume": 0.204,
+  "sfx_volume": 0.408,
   "controls": {
-    "accelerate_right": 1073741904,
-    "accelerate_left": 1073741903,
+    "accelerate_right": 1073741903,
+    "accelerate_left": 1073741904,
     "shoot": 32
   }
 }
