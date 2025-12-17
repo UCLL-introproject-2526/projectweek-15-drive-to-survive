@@ -73,9 +73,9 @@ def draw_health_bar(surface, rect, current, maximum):
     if maximum <= 0 or current <= 0:
         return
 
-    bar_width = rect.width
+    bar_width = 60
     bar_height = 6
-    x = rect.x
+    x = rect.x + ((rect.width/2) - (bar_width/2))
     y = rect.y - bar_height - 4
 
     ratio = max(0, min(1, current / maximum))
@@ -181,14 +181,14 @@ class Zombie:
         else:
             pygame.draw.rect(surface, (0, 200, 0), self.rect, border_radius=4)
 
-        if self.alive and not self.dying:
+        if self.alive and not self.dying and self.health < self.max_health:
             draw_health_bar(surface, self.rect, self.health, self.max_health)
 
 
 class fatZombie(Zombie):
     def _set_health(self, level):
         level_manager = get_level_manager()
-        base_health = 100
+        base_health = 200
         self.max_health = level_manager.get_zombie_health(level, base_health)
         self.health = self.max_health
 
