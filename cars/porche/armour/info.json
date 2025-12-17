@@ -1,0 +1,14 @@
+{
+  "name": "armour",
+  "description": "adds armour to the car",
+
+  "z-index": 1,
+  "car_damage": 10,
+  "damage_reduction": 10,
+  "speed_increase": 0.05,
+  "price": 300,
+
+  "author": "Bram",
+  "version": "1.0.0",
+  "dependencies": []
+}
