@@ -10,6 +10,8 @@ class TurretUpgrade:
         self.max_cooldown = 15  # frames between shots
         self.bullet_speed = 8
         self.bullet_damage = 20
+        self.ammo = 5  # Starting ammunition
+        self.has_shooting = True  # Flag for UI detection
         
         # Load shoot sound effect
         self.shoot_sound = None
@@ -32,9 +34,10 @@ class TurretUpgrade:
             
         # Shoot when the shoot key is pressed (use car's control settings)
         shoot_key = self.car.controls.get('shoot', pygame.K_e)
-        if keys[shoot_key] and self.cooldown == 0:
+        if keys[shoot_key] and self.cooldown == 0 and self.ammo > 0:
             self.shoot(zombies)
             self.cooldown = self.max_cooldown
+            self.ammo -= 1
             
         # Update bullets
         for bullet in self.bullets[:]:
