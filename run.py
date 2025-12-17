@@ -78,6 +78,7 @@ from upgrades import load_upgrades, save_all_upgrades_status, load_all_upgrades_
 from car import Car
 from zombies import spawn_zombies
 from terrain import get_ground_height, set_current_level, clear_terrain
+from settings import settings_screen
 import sys
 
 # Compatibility money proxy so upgrade scripts that reference main_module.money or main_module.money_ref still work
@@ -118,7 +119,7 @@ ENGINE_VOLUME_DRIVE_FACTOR = 1.0   # full SFX volume when driving
 ENGINE_VOLUME_STEP = 0.04         # per-frame smoothing step toward target factor
 
 MENU_MUSIC_PATH = os.path.join("assets", "music", "menu.mp3")
-BG_MUSIC_PATH = os.path.join("assets", "music", "menu.mp3")
+BG_MUSIC_PATH = os.path.join("assets", "music", "music.mp3")
 # Engine sound file is a wav file fallback, keep as wav to match synth fallback expectations
 ENGINE_SOUND_PATH = os.path.join("assets", "music", "menu.wav")
 
@@ -159,13 +160,6 @@ if MIXER_AVAILABLE:
         AUDIO_ENABLED = False
 
 print(f"_menu_music_loaded={_menu_music_loaded}, _bg_music_loaded={_bg_music_loaded}, engine_loaded={_engine_sound is not None}, AUDIO_ENABLED={AUDIO_ENABLED}")
-
-# Start playing menu music immediately if available (auto-play without user input)
-if AUDIO_ENABLED and _menu_music_loaded:
-    try:
-        play_menu_music()
-    except Exception as e:
-        print(f"Auto-start menu music failed: {e}")
 
 # Audio control helpers
 def play_menu_music():
@@ -221,6 +215,13 @@ def stop_engine_sound():
             _engine_sound.stop()
     except Exception:
         pass
+
+# Start playing menu music immediately if available (auto-play without user input)
+if AUDIO_ENABLED and _menu_music_loaded:
+    try:
+        play_menu_music()
+    except Exception as e:
+        print(f"Auto-start menu music failed: {e}")
 
 # Synthesize a simple sine wave Sound buffer if no engine file is present
 def synth_sine_sound(frequency=100.0, duration=1.0, volume=0.5):
@@ -541,6 +542,13 @@ def draw_fuel_bar(car):
 # Garage with integrated car selection
 # ==============================
 def garage(car):
+    # Stop engine sound when entering garage
+    stop_engine_sound()
+    
+    # Start menu music when entering garage
+    if AUDIO_ENABLED and _menu_music_loaded:
+        play_menu_music()
+    
     # Laad alle auto's
     car_types_list = get_car_type_list()
     if not car_types_list:
@@ -1014,10 +1022,10 @@ def main_game_loop():
         stop_engine_sound()
     except Exception:
         pass
-    try:
-        stop_music()
-    except Exception:
-        pass
+    
+    # Start menu music when returning to start screen
+    if AUDIO_ENABLED and _menu_music_loaded:
+        play_menu_music()
 
 def credits_screen():
     """Display credits screen"""
@@ -1047,49 +1055,6 @@ def credits_screen():
         
         y_offset = 150
         for line in credits_lines:
-            text = small_font.render(line, True, WHITE)
-            screen.blit(text, (WIDTH//2 - text.get_width()//2, y_offset))
-            y_offset += 40
-        
-        for e in pygame.event.get():
-            if e.type == pygame.QUIT:
-                save_all_upgrades_status()
-                pygame.quit()
-                sys.exit()
-            elif e.type == pygame.KEYDOWN:
-                if e.key == pygame.K_ESCAPE:
-                    running = False
-        
-        pygame.display.flip()
-
-def settings_screen():
-    """Display settings screen"""
-    running = True
-    while running:
-        clock.tick(60)
-        
-        # Fill background
-        screen.fill((30, 30, 50))
-        
-        # Settings text
-        title = font.render("Settings", True, WHITE)
-        screen.blit(title, (WIDTH//2 - title.get_width()//2, 50))
-        
-        settings_lines = [
-            "Settings:",
-            "",
-            "Audio: {} (press M to toggle)".format("On" if AUDIO_ENABLED else "Off"),
-            "",
-            "Future features:",
-            "- Volume controls",
-            "- Graphics options",
-            "- Control customization",
-            "",
-            "Press ESC to return"
-        ]
-        
-        y_offset = 150
-        for line in settings_lines:
             text = small_font.render(line, True, WHITE)
             screen.blit(text, (WIDTH//2 - text.get_width()//2, y_offset))
             y_offset += 40
@@ -1201,7 +1166,7 @@ def main():
             game_state = "start_screen"
         
         elif game_state == "settings":
-            settings_screen()
+            settings_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE, AUDIO_ENABLED)
             game_state = "start_screen"
         
         pygame.display.flip()
