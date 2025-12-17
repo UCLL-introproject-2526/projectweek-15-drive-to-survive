@@ -5,11 +5,42 @@ import json
 import math
 import random
 import importlib.util
+import io
+import wave
+import struct
+
 
 # ==============================
 # Initialization
 # ==============================
+# Configure audio mixer earlier to improve reliability and reduce latency
+try:
+    pygame.mixer.pre_init(44100, -16, 2, 512)
+except Exception:
+    # pre_init is best-effort; continue regardless
+    pass
+
+# Now initialize pygame
 pygame.init()
+# Initialize mixer with fallbacks; if it fails, audio will be disabled gracefully
+MIXER_AVAILABLE = False
+try:
+    pygame.mixer.init()
+    MIXER_AVAILABLE = True
+except Exception as e:
+    print(f"mixer init default failed: {e}")
+    # Try a simpler fallback init
+    try:
+        pygame.mixer.init(frequency=22050)
+        MIXER_AVAILABLE = True
+        print("mixer init fallback (22050) succeeded")
+    except Exception as e2:
+        MIXER_AVAILABLE = False
+        print(f"mixer init fallback failed: {e2}")
+        print("Tip: If mixer init keeps failing, check Windows Volume Mixer, ensure a default audio device is set, and that the Windows Audio service is running.")
+
+print(f"Mixer available: {MIXER_AVAILABLE} (init: {pygame.mixer.get_init()})")
+
 WIDTH, HEIGHT = 1000, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Zombie Car")
@@ -64,19 +95,197 @@ class _MoneyProxy:
         return str(state.money)
 
 # Attach proxy and money_ref to main module for scripts that expect them
-from typing import Any, cast
-main_mod = cast(Any, sys.modules.get('__main__'))
+main_mod = sys.modules.get('__main__')
 if main_mod is not None:
     main_mod.money = _MoneyProxy()
     main_mod.money_ref = lambda: main_mod.money
 
 
-GRAVITY = 0
+GRAVITY = 0.095
 FRICTION = 0.99
 AIR_FRICTION = 0.995
 TERRAIN_STEP = 10
 FUEL_DELAY = 5000
 fuel_empty_time = None
+
+# Audio configuration
+AUDIO_ENABLED = True if MIXER_AVAILABLE else False
+AUDIO_VOLUME_MUSIC = 0.4
+AUDIO_VOLUME_SFX = 0.6
+# Engine volume behaviour: idle is soft (factor 0..1 relative to AUDIO_VOLUME_SFX), drive increases to a louder factor
+ENGINE_VOLUME_IDLE_FACTOR = 0.25  # softly audible when idle
+ENGINE_VOLUME_DRIVE_FACTOR = 1.0   # full SFX volume when driving
+ENGINE_VOLUME_STEP = 0.04         # per-frame smoothing step toward target factor
+
+MENU_MUSIC_PATH = os.path.join("assets", "music", "menu.mp3")
+BG_MUSIC_PATH = os.path.join("assets", "music", "menu.mp3")
+# Engine sound file is a wav file fallback, keep as wav to match synth fallback expectations
+ENGINE_SOUND_PATH = os.path.join("assets", "music", "menu.wav")
+
+_menu_music_loaded = False
+_bg_music_loaded = False
+_engine_sound = None
+_engine_playing = False
+
+# Try loading audio assets if mixer is available
+if MIXER_AVAILABLE:
+    try:
+        menu_exists = os.path.exists(MENU_MUSIC_PATH)
+        bg_exists = os.path.exists(BG_MUSIC_PATH)
+        engine_exists = os.path.exists(ENGINE_SOUND_PATH)
+
+        print(f"Audio files - menu: {menu_exists}, bg: {bg_exists}, engine: {engine_exists}")
+
+        if menu_exists:
+            try:
+                pygame.mixer.music.load(MENU_MUSIC_PATH)
+                _menu_music_loaded = True
+            except Exception as e:
+                print(f"Failed to load menu music: {e}")
+        if bg_exists:
+            _bg_music_loaded = True
+        if engine_exists:
+            try:
+                _engine_sound = pygame.mixer.Sound(ENGINE_SOUND_PATH)
+                # set initial idle volume (will be adjusted when driving)
+                try:
+                    _engine_sound.set_volume(AUDIO_VOLUME_SFX * ENGINE_VOLUME_IDLE_FACTOR)
+                except Exception:
+                    _engine_sound.set_volume(AUDIO_VOLUME_SFX)
+            except Exception as e:
+                print(f"Failed to load engine sound: {e}")
+    except Exception as e:
+        print(f"Audio load error: {e}")
+        AUDIO_ENABLED = False
+
+print(f"_menu_music_loaded={_menu_music_loaded}, _bg_music_loaded={_bg_music_loaded}, engine_loaded={_engine_sound is not None}, AUDIO_ENABLED={AUDIO_ENABLED}")
+
+# Start playing menu music immediately if available (auto-play without user input)
+if AUDIO_ENABLED and _menu_music_loaded:
+    try:
+        play_menu_music()
+    except Exception as e:
+        print(f"Auto-start menu music failed: {e}")
+
+# Audio control helpers
+def play_menu_music():
+    global _menu_music_loaded
+    if not AUDIO_ENABLED or not _menu_music_loaded:
+        print("play_menu_music: skipped (audio disabled or file missing)")
+        return
+    try:
+        print("play_menu_music: attempting to play")
+        pygame.mixer.music.load(MENU_MUSIC_PATH)
+        pygame.mixer.music.set_volume(AUDIO_VOLUME_MUSIC)
+        pygame.mixer.music.play(-1)
+        print("play_menu_music: playing")
+    except Exception as e:
+        print(f"Failed to play menu music: {e}")
+
+def play_bg_music():
+    global _bg_music_loaded
+    if not AUDIO_ENABLED:
+        print("play_bg_music: skipped (audio disabled)")
+        return
+    try:
+        # If explicit background track is missing, fall back to menu music if available
+        if _bg_music_loaded:
+            path = BG_MUSIC_PATH
+        elif _menu_music_loaded:
+            path = MENU_MUSIC_PATH
+            print("play_bg_music: falling back to menu music")
+        else:
+            print("play_bg_music: skipped (no tracks available)")
+            return
+
+        print(f"play_bg_music: attempting to play {path}")
+        pygame.mixer.music.load(path)
+        pygame.mixer.music.set_volume(AUDIO_VOLUME_MUSIC)
+        pygame.mixer.music.play(-1)
+        print("play_bg_music: playing")
+    except Exception as e:
+        print(f"Failed to play background music: {e}")
+
+def stop_music():
+    if not AUDIO_ENABLED:
+        return
+    try:
+        pygame.mixer.music.stop()
+    except Exception:
+        pass
+
+def stop_engine_sound():
+    global _engine_sound
+    try:
+        if _engine_sound:
+            _engine_sound.stop()
+    except Exception:
+        pass
+
+# Synthesize a simple sine wave Sound buffer if no engine file is present
+def synth_sine_sound(frequency=100.0, duration=1.0, volume=0.5):
+    """Generate a pygame.mixer.Sound containing a sine wave.
+
+    Returns None if mixer not initialized or generation fails.
+    """
+    if not MIXER_AVAILABLE:
+        return None
+    try:
+        fmt = pygame.mixer.get_init()  # (frequency, size, channels)
+        if not fmt:
+            sr = 44100
+            channels = 2
+        else:
+            sr = fmt[0]
+            channels = fmt[2] if len(fmt) > 2 else 2
+
+        n_samples = int(sr * duration)
+        max_amp = int(volume * 32767)
+
+        buf = bytearray()
+        for i in range(n_samples):
+            t = i / sr
+            sample = int(max_amp * math.sin(2.0 * math.pi * frequency * t))
+            # pack as signed 16-bit little-endian
+            packed = struct.pack('<h', sample)
+            if channels == 2:
+                buf.extend(packed)
+                buf.extend(packed)
+            else:
+                buf.extend(packed)
+        sound = pygame.mixer.Sound(buffer=bytes(buf))
+        return sound
+    except Exception as e:
+        print(f"synth_sine_sound failed: {e}")
+        return None
+
+# If engine sound wasn't loaded from file, synth one as fallback
+if MIXER_AVAILABLE and _engine_sound is None:
+    _engine_sound = synth_sine_sound(frequency=110.0, duration=1.0, volume=0.3)
+    if _engine_sound:
+        # set initial idle volume for synthesized sound as well
+        try:
+            _engine_sound.set_volume(AUDIO_VOLUME_SFX * ENGINE_VOLUME_IDLE_FACTOR)
+        except Exception:
+            _engine_sound.set_volume(AUDIO_VOLUME_SFX)
+        print("Synthesized engine sound for fallback")
+    else:
+        print("No engine sound available and synthesis failed")
+
+# Auto test: play a short synthesized tone to verify mixer outputs audio on startup
+if MIXER_AVAILABLE:
+    try:
+        test_tone = synth_sine_sound(frequency=440.0, duration=0.5, volume=0.5)
+        if test_tone:
+            print("Auto test tone: playing")
+            try:
+                test_tone.play()
+            except Exception as e:
+                print(f"Auto test tone play failed: {e}")
+        else:
+            print("Auto test tone: synthesis failed")
+    except Exception as e:
+        print(f"Auto test tone failed: {e}")
 
 # Current car selection stored in car_types module
 
@@ -123,6 +332,27 @@ class Logo:
     
     def render(self, surface):
         surface.blit(self.image, self.rect)
+        # Draw audio status on start screen
+        try:
+            status = "On" if AUDIO_ENABLED else "Off"
+            info = small_font.render(f"Audio: {status} (M to toggle)", True, WHITE)
+            surface.blit(info, (WIDTH - info.get_width() - 20, 20))
+
+            # Detailed diagnostics
+            diag_lines = [
+                f"Mixer avail: {MIXER_AVAILABLE}",
+                f"mixer init: {pygame.mixer.get_init()}",
+                f"menu_loaded: {_menu_music_loaded}",
+                f"bg_loaded: {_bg_music_loaded}",
+                f"engine_loaded: {(_engine_sound is not None)}",
+            ]
+            y = 50
+            for line in diag_lines:
+                txt = small_font.render(line, True, WHITE)
+                surface.blit(txt, (WIDTH - txt.get_width() - 20, y))
+                y += 20
+        except Exception:
+            pass
 
 class Button:
     def __init__(self, x, y, width, height, text, color, hover_color, icon_path=None):
@@ -439,9 +669,6 @@ def garage(car):
         screen.blit(small_font.render("Start Level", True, WHITE), (btn_next.centerx - 50, btn_next.centery - 10))
 
         # Confirmation popup
-        # initialize visible popup variables to avoid static analysis warnings
-        msg = small_font.render("", True, WHITE)
-        btn_yes = btn_no = None
         if confirmation_active and confirmation_upgrade:
             popup_rect = pygame.Rect(WIDTH//2 - 150, HEIGHT//2 - 120, 300, 240)
             pygame.draw.rect(screen, (60,60,60), popup_rect)
@@ -507,8 +734,7 @@ def garage(car):
                 pygame.quit()
                 sys.exit()
             elif e.type == pygame.MOUSEBUTTONDOWN:
-                # Only respond to the popup if it's active AND we have a selected upgrade to act on
-                if confirmation_active and confirmation_upgrade and btn_yes is not None and btn_no is not None:
+                if confirmation_active:
                     if btn_yes.collidepoint(e.pos):
                         if confirmation_action == 'purchase':
                             if state.money >= confirmation_upgrade.price and not confirmation_upgrade.purchased:
@@ -618,12 +844,84 @@ def reset_car():
 def main_game_loop():
     """Main game loop after starting from garage"""
     car = reset_car()
-    zombies = spawn_zombies(state.current_level)
+    zombies = spawn_zombies(state.current_level) or []
+
+    # Start background music for gameplay
+    if AUDIO_ENABLED and _bg_music_loaded:
+        play_bg_music()
+    else:
+        # If no background track available, stop any menu music
+        stop_music()
+
+    engine_playing_local = False
+    # Track current engine volume factor (0..1 relative multiplier to AUDIO_VOLUME_SFX)
+    engine_current_factor = 0.0
+
+    # Start a quiet idle engine loop so there's a soft hum before driving
+    if AUDIO_ENABLED and _engine_sound:
+        try:
+            engine_current_factor = ENGINE_VOLUME_IDLE_FACTOR
+            try:
+                _engine_sound.set_volume(AUDIO_VOLUME_SFX * engine_current_factor)
+            except Exception:
+                _engine_sound.set_volume(AUDIO_VOLUME_SFX)
+            _engine_sound.play(-1)
+            engine_playing_local = True
+        except Exception as e:
+            print(f"Failed to start engine idle sound: {e}")
+            engine_playing_local = False
 
     running = True
     while running:
         clock.tick(60)
         pressed = pygame.key.get_pressed()
+
+        # Engine sound handling: smoothly increase volume when accelerating, lower when idle
+        try:
+            accel_pressed = pressed[pygame.K_RIGHT] or pressed[pygame.K_LEFT]
+        except Exception:
+            accel_pressed = False
+
+        if AUDIO_ENABLED and _engine_sound:
+            # Determine desired target factor
+            if car.fuel <= 0:
+                target_factor = 0.0
+            else:
+                target_factor = ENGINE_VOLUME_DRIVE_FACTOR if accel_pressed else ENGINE_VOLUME_IDLE_FACTOR
+
+            # Ensure sound is playing if we need any audibility
+            if target_factor > 0 and not engine_playing_local:
+                try:
+                    _engine_sound.play(-1)
+                    engine_playing_local = True
+                    # start from zero so it can ramp up
+                    engine_current_factor = 0.0
+                except Exception as e:
+                    print(f"Failed to start engine sound: {e}")
+                    engine_playing_local = False
+
+            # Smoothly move current factor toward target
+            if engine_playing_local:
+                if engine_current_factor < target_factor:
+                    engine_current_factor = min(target_factor, engine_current_factor + ENGINE_VOLUME_STEP)
+                elif engine_current_factor > target_factor:
+                    engine_current_factor = max(target_factor, engine_current_factor - ENGINE_VOLUME_STEP)
+
+                # Apply volume
+                try:
+                    _engine_sound.set_volume(AUDIO_VOLUME_SFX * engine_current_factor)
+                except Exception:
+                    pass
+
+                # If target is truly silent and we've ramped down to zero, stop to save resources
+                if target_factor == 0.0 and abs(engine_current_factor) < 1e-4:
+                    try:
+                        _engine_sound.stop()
+                    except Exception:
+                        pass
+                    engine_playing_local = False
+
+        
 
         draw_background(car.world_x)
         car.update(pressed)
@@ -698,7 +996,7 @@ def main_game_loop():
             clear_terrain()
             car = reset_car()  # This will reapply all purchased upgrades
             garage(car)
-            zombies = spawn_zombies(state.current_level)
+            zombies = spawn_zombies(state.current_level) or []
 
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
@@ -710,6 +1008,16 @@ def main_game_loop():
                     running = False  # Return to start screen
 
         pygame.display.flip()
+
+    # Cleanup audio when leaving the main game loop
+    try:
+        stop_engine_sound()
+    except Exception:
+        pass
+    try:
+        stop_music()
+    except Exception:
+        pass
 
 def credits_screen():
     """Display credits screen"""
@@ -768,7 +1076,9 @@ def settings_screen():
         screen.blit(title, (WIDTH//2 - title.get_width()//2, 50))
         
         settings_lines = [
-            "Settings are not implemented yet.",
+            "Settings:",
+            "",
+            "Audio: {} (press M to toggle)".format("On" if AUDIO_ENABLED else "Off"),
             "",
             "Future features:",
             "- Volume controls",
@@ -799,6 +1109,7 @@ def settings_screen():
 # Main Program
 # ==============================
 def main():
+    global AUDIO_ENABLED
     # Pre-load car types once at the start
     print("Starting Zombie Car...")
     print("Loading car types...")
@@ -810,6 +1121,11 @@ def main():
     
     # Create start screen
     start_screen = StartScreen()
+    # Debug audio status at startup
+    print(f"main start: MIXER_AVAILABLE={MIXER_AVAILABLE}, AUDIO_ENABLED={AUDIO_ENABLED}, _menu_music_loaded={_menu_music_loaded}, _bg_music_loaded={_bg_music_loaded}")
+    # Start menu music if available
+    if AUDIO_ENABLED and _menu_music_loaded:
+        play_menu_music()
     
     # Game state
     game_state = "start_screen"
@@ -825,6 +1141,31 @@ def main():
                 save_all_upgrades_status()
                 running = False
                 break
+            elif e.type == pygame.KEYDOWN:
+                # Toggle audio with M key
+                if e.key == pygame.K_m:
+                    AUDIO_ENABLED = not AUDIO_ENABLED
+                    print(f"Audio toggled: AUDIO_ENABLED={AUDIO_ENABLED}")
+                    if not AUDIO_ENABLED:
+                        stop_music()
+                        stop_engine_sound()
+                    else:
+                        # Restart appropriate music based on state
+                        if game_state == "start_screen":
+                            play_menu_music()
+                        elif game_state == "main_game":
+                            play_bg_music()
+                # Test tone (synthesized) with T key
+                if e.key == pygame.K_t:
+                    if MIXER_AVAILABLE:
+                        print("T pressed: playing test tone")
+                        tone = synth_sine_sound(frequency=440.0, duration=0.5, volume=0.5)
+                        if tone:
+                            tone.play()
+                        else:
+                            print("Failed to generate test tone")
+                    else:
+                        print("Mixer not available; cannot play test tone")
         
         # Update based on game state
         if game_state == "start_screen":
@@ -852,6 +1193,8 @@ def main():
             main_game_loop()
             # After main game ends (when player presses ESC), return to start screen
             game_state = "start_screen"
+            if AUDIO_ENABLED and _menu_music_loaded:
+                play_menu_music()
         
         elif game_state == "credits":
             credits_screen()

@@ -65,6 +65,42 @@ for f in range(400):
 print('Car became airborne during simulation:', airborne)
 print('Final state: x=%.1f y=%.1f angle=%.2f health=%s' % (car.world_x, car.y, car.angle, car.health))
 
+# --------------------
+# Audio smoke test
+# --------------------
+print('\n--- Smoke test: audio initialization ---')
+try:
+    # Attempt to use existing mixer state if already initialized; otherwise try to init
+    if not pygame.mixer.get_init():
+        try:
+            pygame.mixer.init()
+        except Exception as e:
+            print('Audio smoke: mixer init failed:', e)
+    print('Audio smoke: mixer init state =', pygame.mixer.get_init())
+    # Try playing a short synthesized tone
+    try:
+        fmt = pygame.mixer.get_init()
+        if fmt:
+            sr = fmt[0]
+            import math, struct
+            n_samples = int(sr * 0.2)
+            buf = bytearray()
+            max_amp = int(0.3 * 32767)
+            for i in range(n_samples):
+                sample = int(max_amp * math.sin(2.0 * math.pi * 440.0 * (i / sr)))
+                packed = struct.pack('<h', sample)
+                buf.extend(packed)
+                buf.extend(packed)
+            tone = pygame.mixer.Sound(buffer=bytes(buf))
+            tone.play()
+            print('Audio smoke: played short tone')
+        else:
+            print('Audio smoke: mixer not initialized; skipping tone')
+    except Exception as e:
+        print('Audio smoke: failed to play tone:', e)
+except Exception as e:
+    print('Audio smoke: unexpected error:', e)
+
 # Collision test: spawn a zombie at the car's x and ensure collision happens
 from zombies import Zombie
 z = Zombie(car.world_x)
