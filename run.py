@@ -82,6 +82,7 @@ from settings import settings_screen, load_settings
 from garage import garage
 from credits import credits_screen
 from audio import AudioManager
+from levels import get_level_manager, reset_level_manager
 import sys
 
 # Compatibility money proxy so upgrade scripts that reference main_module.money or main_module.money_ref still work
@@ -307,6 +308,36 @@ def draw_fuel_bar(car):
     fuel_text = small_font.render(f"Fuel: {int(car.fuel)}%", True, WHITE)
     screen.blit(fuel_text, (x + 5, y - 25))
 
+def draw_level_info():
+    """Display current level information"""
+    level_manager = get_level_manager()
+    config = level_manager.get_current_level_config()
+    
+    # Display level number and description at top center
+    level_text = small_font.render(f"Level {config.level_number}: {config.description}", True, WHITE)
+    level_rect = level_text.get_rect()
+    level_x = WIDTH // 2 - level_rect.width // 2
+    screen.blit(level_text, (level_x, 20))
+    
+    # Display progress bar for level completion
+    bar_width = 300
+    bar_height = 15
+    bar_x = WIDTH // 2 - bar_width // 2
+    bar_y = 50
+    
+    # Calculate progress
+    progress = min(1.0, state.distance / config.distance_required)
+    
+    # Draw progress bar
+    pygame.draw.rect(screen, (50, 50, 50), (bar_x, bar_y, bar_width, bar_height))
+    progress_width = int(progress * bar_width)
+    pygame.draw.rect(screen, (50, 200, 50), (bar_x, bar_y, progress_width, bar_height))
+    pygame.draw.rect(screen, WHITE, (bar_x, bar_y, bar_width, bar_height), 2)
+    
+    # Display distance progress
+    progress_text = small_font.render(f"{int(state.distance)}m / {config.distance_required}m", True, WHITE)
+    screen.blit(progress_text, (bar_x + bar_width + 10, bar_y - 3))
+
 # ==============================
 # Background
 # ==============================
@@ -320,6 +351,53 @@ def draw_background(cam_x):
 # ==============================
 # Main Game
 # ==============================
+def show_level_intro(level_number):
+    """Display level introduction screen before starting the level"""
+    level_manager = get_level_manager()
+    config = level_manager.get_level_config(level_number)
+    
+    # Display level info
+    intro_duration = 120  # frames (2 seconds at 60 FPS)
+    for frame in range(intro_duration):
+        screen.fill((20, 20, 30))  # Dark background
+        
+        # Title
+        level_title = font.render(f"LEVEL {config.level_number}", True, (255, 255, 100))
+        screen.blit(level_title, (WIDTH//2 - level_title.get_width()//2, HEIGHT//3))
+        
+        # Description
+        desc_text = small_font.render(config.description, True, WHITE)
+        screen.blit(desc_text, (WIDTH//2 - desc_text.get_width()//2, HEIGHT//3 + 60))
+        
+        # Stats
+        y_offset = HEIGHT//2
+        stats = [
+            f"Distance to Complete: {config.distance_required}m",
+            f"Zombies: {config.zombie_count}",
+            f"Completion Bonus: ${config.money_reward}"
+        ]
+        
+        for stat in stats:
+            stat_text = small_font.render(stat, True, (200, 200, 200))
+            screen.blit(stat_text, (WIDTH//2 - stat_text.get_width()//2, y_offset))
+            y_offset += 35
+        
+        # Ready message
+        if frame > intro_duration // 2:
+            ready_text = font.render("GET READY!", True, (255, 100, 100))
+            screen.blit(ready_text, (WIDTH//2 - ready_text.get_width()//2, HEIGHT - 100))
+        
+        pygame.display.flip()
+        clock.tick(60)
+        
+        # Allow skipping with any key
+        for e in pygame.event.get():
+            if e.type == pygame.KEYDOWN or e.type == pygame.MOUSEBUTTONDOWN:
+                return
+            elif e.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
 def reset_car(controls=None):
     # Create car without applying upgrades yet
     car = Car(apply_upgrades_now=False, controls=controls)
@@ -339,6 +417,9 @@ def reset_car(controls=None):
 # ==============================
 def main_game_loop(controls=None):
     """Main game loop after starting from garage"""
+    # Show level intro screen
+    show_level_intro(state.current_level)
+    
     car = reset_car(controls)
     zombies = spawn_zombies(state.current_level) or []
 
@@ -445,6 +526,7 @@ def main_game_loop(controls=None):
         # Draw both health and fuel bars
         draw_health_bar(car)
         draw_fuel_bar(car)
+        draw_level_info()  # Display level information
         
         # Show shooting instruction if any upgrade has shooting capability
         has_shooting = False
@@ -472,23 +554,41 @@ def main_game_loop(controls=None):
             warning_text = small_font.render("LOW FUEL!", True, (255, 50, 50))
             screen.blit(warning_text, (240, 85))  # Position near fuel bar
 
-        if state.distance >= 10000 or car.health <= 0 or car.fuel <= 0:
+        # Check for level completion or game over
+        level_manager = get_level_manager()
+        level_complete = level_manager.is_level_complete(state.distance, state.current_level)
+        
+        if level_complete or car.health <= 0 or car.fuel <= 0:
             # Show end game reason
             if car.health <= 0:
                 reason = "HEALTH DEPLETED!"
+                reward = 0
             elif car.fuel <= 0:
                 reason = "OUT OF FUEL!"
+                reward = 0
             else:
                 reason = "LEVEL COMPLETE!"
+                # Award completion bonus
+                reward = level_manager.get_completion_reward(state.current_level)
+                state.money += reward
             
             # Display reason for a moment
             reason_text = font.render(reason, True, (255, 255, 0))
-            screen.blit(reason_text, (WIDTH//2 - reason_text.get_width()//2, HEIGHT//2))
+            screen.blit(reason_text, (WIDTH//2 - reason_text.get_width()//2, HEIGHT//2 - 40))
+            
+            if reward > 0:
+                reward_text = small_font.render(f"Bonus: ${reward}", True, (100, 255, 100))
+                screen.blit(reward_text, (WIDTH//2 - reward_text.get_width()//2, HEIGHT//2 + 10))
+            
             pygame.display.flip()
             pygame.time.delay(2000)  # Wait 2 seconds
             
+            # Advance to next level or reset
+            if level_complete:
+                state.current_level += 1
+                level_manager.advance_level()
+            
             state.distance = 0
-            state.current_level += 1
             set_current_level(state.current_level)
             clear_terrain()
             car = reset_car(controls)  # This will reapply all purchased upgrades
@@ -529,6 +629,11 @@ def main():
     print("Starting Zombie Car...")
     print("Loading car types...")
     load_car_types()
+    
+    # Initialize level manager
+    print("Initializing level system...")
+    level_manager = get_level_manager()
+    print(f"Level system ready - Current level: {level_manager.current_level}")
     
     # Laad upgrades status bij start (inclusief de opgeslagen auto)
     print("Loading upgrades status...")
