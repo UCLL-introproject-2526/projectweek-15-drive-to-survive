@@ -36,22 +36,48 @@ class TurretUpgrade:
             bullet_rect = pygame.Rect(bullet['x'] - 3, bullet['y'] - 3, 6, 6)
             for zombie in zombies:
                 if zombie.alive:
-                    # Zombie position on screen
-                    zombie_screen_x = zombie.x - self.car.world_x + WIDTH//3 - 11
-                    zombie_screen_y = get_ground_height(zombie.x) - 40
-                    zombie_rect = pygame.Rect(zombie_screen_x, zombie_screen_y, 22, 40)
+                    # Zombie position on screen - use sprite rect if available
+                    if hasattr(zombie, 'rect'):
+                        z_w = zombie.rect.width
+                        z_h = zombie.rect.height
+                    else:
+                        z_w, z_h = 22, 40
+
+                    zombie_screen_x = zombie.x - self.car.world_x + WIDTH//3 - z_w//2
+                    zombie_screen_y = get_ground_height(zombie.x) - z_h
+                    zombie_rect = pygame.Rect(zombie_screen_x, zombie_screen_y, z_w, z_h)
                     
                     if bullet_rect.colliderect(zombie_rect):
-                        zombie.alive = False
-                        # Add money through the global reference
-                        import sys
-                        main_module = sys.modules['__main__']
-                        if hasattr(main_module, 'money'):
-                            main_module.money += 15
-                        elif hasattr(main_module, 'money_ref'):
-                            money = main_module.money_ref()
-                            money += 15
-                        
+                        # Apply bullet damage if the zombie exposes a health attribute.
+                        killed = False
+                        if hasattr(zombie, 'health'):
+                            try:
+                                zombie.health -= self.bullet_damage
+                            except Exception:
+                                pass
+                            if getattr(zombie, 'health', 0) <= 0:
+                                # Start death animation flow used by zombies, but do not
+                                # restart the animation if it's already playing.
+                                if not getattr(zombie, 'dying', False):
+                                    zombie.dying = True
+                                    zombie.death_timer = 0
+                                    zombie.current_frame = 0
+                                killed = True
+                        else:
+                            # Fallback: mark dead immediately
+                            zombie.alive = False
+                            killed = True
+
+                        # Award money only when the zombie is killed
+                        if killed:
+                            import sys
+                            main_module = sys.modules['__main__']
+                            if hasattr(main_module, 'money'):
+                                main_module.money += 15
+                            elif hasattr(main_module, 'money_ref'):
+                                money = main_module.money_ref()
+                                money += 15
+
                         if bullet in self.bullets:
                             self.bullets.remove(bullet)
                         break

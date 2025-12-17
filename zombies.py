@@ -77,7 +77,9 @@ class Zombie:
         self.death_duration = 30  # frames for death animation
 
     def __set_health(self, level):
-        self.__health = 50 * (1.1 ** level)
+        # Public health attribute so other systems (bullets, scripts)
+        # can apply damage without relying on name-mangled internals.
+        self.health = 50 * (1.1 ** level)
         
         # Load animations using the correct relative paths
         walk_path = os.path.join("images", "normal-zombie")
@@ -179,7 +181,9 @@ class fatZombie:
         self.death_duration = 45
 
     def __set_health(self, level):
-        self.__health = 200 * (1.1 ** level)
+        # Public health attribute so other systems (bullets, scripts)
+        # can apply damage without relying on name-mangled internals.
+        self.health = 200 * (1.1 ** level)
         walk_path = os.path.join("images", "fat-zombie")
         death_path = os.path.join("images", "fat-zombie-damaged")
 
