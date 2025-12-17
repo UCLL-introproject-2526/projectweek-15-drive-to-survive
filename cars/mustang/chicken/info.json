@@ -7,7 +7,7 @@
   "damage_reduction": 10,
   "speed_increase": 100,
   "price": 100,
-  "script": "True",
+  "script": true,
 
   "author": "Victor",
   "version": "1.0.0",
