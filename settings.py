@@ -75,10 +75,6 @@ def settings_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE, AUDIO
         screen.blit(audio_title, (100, y_offset))
         y_offset += 40
         
-        audio_status = small_font.render(f"Audio: {'On' if AUDIO_ENABLED else 'Off'} (press M to toggle)", True, WHITE)
-        screen.blit(audio_status, (120, y_offset))
-        y_offset += 40
-        
         # Volume controls
         music_label = small_font.render(f"Music Volume: {int(music_volume * 100)}%", True, WHITE)
         screen.blit(music_label, (120, y_offset))
