@@ -18,7 +18,6 @@ LAUNCH_FACTOR = 0.7  # fraction of forward speed converted into upward velocity
 
 # Angular behavior
 ANGULAR_FACTOR = 2.0  # multiplier to convert forward speed to angular velocity (deg per frame per speed unit)
-ANGULAR_DAMPING = 0.98  # damping applied to angular velocity while airborne
 
 class Car:
     def __init__(self, apply_upgrades_now=True):
@@ -255,8 +254,7 @@ class Car:
             if self.air_angle is None:
                 self.air_angle = self.angle
             # apply angular motion
-            self.angle += self.angular_velocity
-            self.angular_velocity *= ANGULAR_DAMPING
+            self.angle += self.speed * -0.03
             self.speed *= 0.995
 
         self.world_x += self.speed

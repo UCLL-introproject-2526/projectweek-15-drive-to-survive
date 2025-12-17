@@ -78,6 +78,7 @@ from upgrades import load_upgrades, save_all_upgrades_status, load_all_upgrades_
 from car import Car
 from zombies import spawn_zombies
 from terrain import get_ground_height, set_current_level, clear_terrain
+from settings import settings_screen
 import sys
 
 # Compatibility money proxy so upgrade scripts that reference main_module.money or main_module.money_ref still work
@@ -118,7 +119,7 @@ ENGINE_VOLUME_DRIVE_FACTOR = 1.0   # full SFX volume when driving
 ENGINE_VOLUME_STEP = 0.04         # per-frame smoothing step toward target factor
 
 MENU_MUSIC_PATH = os.path.join("assets", "music", "menu.mp3")
-BG_MUSIC_PATH = os.path.join("assets", "music", "menu.mp3")
+BG_MUSIC_PATH = os.path.join("assets", "music", "music.mp3")
 # Engine sound file is a wav file fallback, keep as wav to match synth fallback expectations
 ENGINE_SOUND_PATH = os.path.join("assets", "music", "menu.wav")
 
@@ -159,13 +160,6 @@ if MIXER_AVAILABLE:
         AUDIO_ENABLED = False
 
 print(f"_menu_music_loaded={_menu_music_loaded}, _bg_music_loaded={_bg_music_loaded}, engine_loaded={_engine_sound is not None}, AUDIO_ENABLED={AUDIO_ENABLED}")
-
-# Start playing menu music immediately if available (auto-play without user input)
-if AUDIO_ENABLED and _menu_music_loaded:
-    try:
-        play_menu_music()
-    except Exception as e:
-        print(f"Auto-start menu music failed: {e}")
 
 # Audio control helpers
 def play_menu_music():
@@ -222,8 +216,15 @@ def stop_engine_sound():
     except Exception:
         pass
 
+# Start playing menu music immediately if available (auto-play without user input)
+if AUDIO_ENABLED and _menu_music_loaded:
+    try:
+        play_menu_music()
+    except Exception as e:
+        print(f"Auto-start menu music failed: {e}")
+
 # Synthesize a simple sine wave Sound buffer if no engine file is present
-def synth_sine_sound(frequency=100.0, duration=1.0, volume=0.5):
+def synth_sine_sound(frequency=100.0, duration=1.0, volume=0):
     """Generate a pygame.mixer.Sound containing a sine wave.
 
     Returns None if mixer not initialized or generation fails.
@@ -261,11 +262,11 @@ def synth_sine_sound(frequency=100.0, duration=1.0, volume=0.5):
 
 # If engine sound wasn't loaded from file, synth one as fallback
 if MIXER_AVAILABLE and _engine_sound is None:
-    _engine_sound = synth_sine_sound(frequency=110.0, duration=1.0, volume=0.3)
+    _engine_sound = synth_sine_sound(frequency=110.0, duration=1.0, volume=0)
     if _engine_sound:
         # set initial idle volume for synthesized sound as well
         try:
-            _engine_sound.set_volume(AUDIO_VOLUME_SFX * ENGINE_VOLUME_IDLE_FACTOR)
+            pass
         except Exception:
             _engine_sound.set_volume(AUDIO_VOLUME_SFX)
         print("Synthesized engine sound for fallback")
@@ -275,7 +276,7 @@ if MIXER_AVAILABLE and _engine_sound is None:
 # Auto test: play a short synthesized tone to verify mixer outputs audio on startup
 if MIXER_AVAILABLE:
     try:
-        test_tone = synth_sine_sound(frequency=440.0, duration=0.5, volume=0.5)
+        test_tone = synth_sine_sound(frequency=440.0, duration=0.5, volume=0)
         if test_tone:
             print("Auto test tone: playing")
             try:
@@ -332,27 +333,6 @@ class Logo:
     
     def render(self, surface):
         surface.blit(self.image, self.rect)
-        # Draw audio status on start screen
-        try:
-            status = "On" if AUDIO_ENABLED else "Off"
-            info = small_font.render(f"Audio: {status} (M to toggle)", True, WHITE)
-            surface.blit(info, (WIDTH - info.get_width() - 20, 20))
-
-            # Detailed diagnostics
-            diag_lines = [
-                f"Mixer avail: {MIXER_AVAILABLE}",
-                f"mixer init: {pygame.mixer.get_init()}",
-                f"menu_loaded: {_menu_music_loaded}",
-                f"bg_loaded: {_bg_music_loaded}",
-                f"engine_loaded: {(_engine_sound is not None)}",
-            ]
-            y = 50
-            for line in diag_lines:
-                txt = small_font.render(line, True, WHITE)
-                surface.blit(txt, (WIDTH - txt.get_width() - 20, y))
-                y += 20
-        except Exception:
-            pass
 
 class Button:
     def __init__(self, x, y, width, height, text, color, hover_color, icon_path=None):
@@ -541,6 +521,13 @@ def draw_fuel_bar(car):
 # Garage with integrated car selection
 # ==============================
 def garage(car):
+    # Stop engine sound when entering garage
+    stop_engine_sound()
+    
+    # Start menu music when entering garage
+    if AUDIO_ENABLED and _menu_music_loaded:
+        play_menu_music()
+    
     # Laad alle auto's
     car_types_list = get_car_type_list()
     if not car_types_list:
@@ -1014,10 +1001,10 @@ def main_game_loop():
         stop_engine_sound()
     except Exception:
         pass
-    try:
-        stop_music()
-    except Exception:
-        pass
+    
+    # Start menu music when returning to start screen
+    if AUDIO_ENABLED and _menu_music_loaded:
+        play_menu_music()
 
 def credits_screen():
     """Display credits screen"""
@@ -1047,49 +1034,6 @@ def credits_screen():
         
         y_offset = 150
         for line in credits_lines:
-            text = small_font.render(line, True, WHITE)
-            screen.blit(text, (WIDTH//2 - text.get_width()//2, y_offset))
-            y_offset += 40
-        
-        for e in pygame.event.get():
-            if e.type == pygame.QUIT:
-                save_all_upgrades_status()
-                pygame.quit()
-                sys.exit()
-            elif e.type == pygame.KEYDOWN:
-                if e.key == pygame.K_ESCAPE:
-                    running = False
-        
-        pygame.display.flip()
-
-def settings_screen():
-    """Display settings screen"""
-    running = True
-    while running:
-        clock.tick(60)
-        
-        # Fill background
-        screen.fill((30, 30, 50))
-        
-        # Settings text
-        title = font.render("Settings", True, WHITE)
-        screen.blit(title, (WIDTH//2 - title.get_width()//2, 50))
-        
-        settings_lines = [
-            "Settings:",
-            "",
-            "Audio: {} (press M to toggle)".format("On" if AUDIO_ENABLED else "Off"),
-            "",
-            "Future features:",
-            "- Volume controls",
-            "- Graphics options",
-            "- Control customization",
-            "",
-            "Press ESC to return"
-        ]
-        
-        y_offset = 150
-        for line in settings_lines:
             text = small_font.render(line, True, WHITE)
             screen.blit(text, (WIDTH//2 - text.get_width()//2, y_offset))
             y_offset += 40
@@ -1142,24 +1086,11 @@ def main():
                 running = False
                 break
             elif e.type == pygame.KEYDOWN:
-                # Toggle audio with M key
-                if e.key == pygame.K_m:
-                    AUDIO_ENABLED = not AUDIO_ENABLED
-                    print(f"Audio toggled: AUDIO_ENABLED={AUDIO_ENABLED}")
-                    if not AUDIO_ENABLED:
-                        stop_music()
-                        stop_engine_sound()
-                    else:
-                        # Restart appropriate music based on state
-                        if game_state == "start_screen":
-                            play_menu_music()
-                        elif game_state == "main_game":
-                            play_bg_music()
                 # Test tone (synthesized) with T key
                 if e.key == pygame.K_t:
                     if MIXER_AVAILABLE:
                         print("T pressed: playing test tone")
-                        tone = synth_sine_sound(frequency=440.0, duration=0.5, volume=0.5)
+                        tone = synth_sine_sound(frequency=440.0, duration=0.5, volume=0)
                         if tone:
                             tone.play()
                         else:
@@ -1201,7 +1132,7 @@ def main():
             game_state = "start_screen"
         
         elif game_state == "settings":
-            settings_screen()
+            settings_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE, AUDIO_ENABLED)
             game_state = "start_screen"
         
         pygame.display.flip()
