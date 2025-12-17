@@ -1,0 +1,14 @@
+{
+  "name": "ram",
+  "description": "adds a ram to the car",
+
+  "z-index": 2,
+  "car_damage": 20,
+  "damage_reduction": 10,
+  "speed_increase": 0.05,
+  "price": 600,
+
+  "author": "Bram",
+  "version": "1.0.0",
+  "dependencies": []
+}
