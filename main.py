@@ -599,7 +599,7 @@ async def main_game_loop(controls=None):
             set_current_level(state.current_level)
             clear_terrain()
             car = reset_car(controls)  # This will reapply all purchased upgrades
-            garage_result = garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
+            garage_result = await garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                    audio_manager.stop_engine_sound, audio_manager.play_menu_music, audio_manager.AUDIO_ENABLED, audio_manager._menu_music_loaded,
                    WHITE, BUTTON, BUTTON_HOVER, UPGRADE_BG, EQUIPPED_COLOR, PURCHASED_COLOR)
             # If they went back to menu, exit the game loop
