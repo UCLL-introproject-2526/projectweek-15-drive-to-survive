@@ -78,7 +78,7 @@ from upgrades import load_upgrades, save_all_upgrades_status, load_all_upgrades_
 from car import Car
 from zombies import spawn_zombies
 from terrain import get_ground_height, set_current_level, clear_terrain
-from settings import settings_screen
+from settings import settings_screen, load_settings
 from garage import garage
 import sys
 
@@ -494,9 +494,9 @@ def draw_background(cam_x):
 # ==============================
 # Main Game
 # ==============================
-def reset_car():
+def reset_car(controls=None):
     # Create car without applying upgrades yet
-    car = Car(apply_upgrades_now=False)
+    car = Car(apply_upgrades_now=False, controls=controls)
     car.world_x = 200
     car.speed = 0
     car.vspeed = 0
@@ -511,9 +511,9 @@ def reset_car():
 # ==============================
 # Game States
 # ==============================
-def main_game_loop():
+def main_game_loop(controls=None):
     """Main game loop after starting from garage"""
-    car = reset_car()
+    car = reset_car(controls)
     zombies = spawn_zombies(state.current_level) or []
 
     # Start background music for gameplay
@@ -548,7 +548,7 @@ def main_game_loop():
 
         # Engine sound handling: smoothly increase volume when accelerating, lower when idle
         try:
-            accel_pressed = pressed[pygame.K_RIGHT] or pressed[pygame.K_LEFT]
+            accel_pressed = pressed[controls['accelerate_right']] or pressed[controls['accelerate_left']]
         except Exception:
             accel_pressed = False
 
@@ -629,7 +629,7 @@ def main_game_loop():
         # Update UI to remove fuel from the text since we have a fuel bar
         # Position the text at the right side of the screen
         if has_shooting:
-            ui_text = f"Distance: {int(state.distance)}  Money: ${state.money}  [E] to shoot"
+            ui_text = f"Distance: {int(state.distance)}  Money: ${state.money}"
         else:
             ui_text = f"Distance: {int(state.distance)}  Money: ${state.money}"
         
@@ -664,7 +664,7 @@ def main_game_loop():
             state.current_level += 1
             set_current_level(state.current_level)
             clear_terrain()
-            car = reset_car()  # This will reapply all purchased upgrades
+            car = reset_car(controls)  # This will reapply all purchased upgrades
             garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                    stop_engine_sound, play_menu_music, AUDIO_ENABLED, _menu_music_loaded,
                    WHITE, BUTTON, BUTTON_HOVER, UPGRADE_BG, EQUIPPED_COLOR, PURCHASED_COLOR)
@@ -738,7 +738,7 @@ def credits_screen():
 # Main Program
 # ==============================
 def main():
-    global AUDIO_ENABLED
+    global AUDIO_ENABLED, AUDIO_VOLUME_MUSIC, AUDIO_VOLUME_SFX
     # Pre-load car types once at the start
     print("Starting Zombie Car...")
     print("Loading car types...")
@@ -747,6 +747,23 @@ def main():
     # Laad upgrades status bij start (inclusief de opgeslagen auto)
     print("Loading upgrades status...")
     load_all_upgrades_status()
+    
+    # Load settings
+    settings = load_settings()
+    AUDIO_VOLUME_MUSIC = settings.get('music_volume', 0.4)
+    AUDIO_VOLUME_SFX = settings.get('sfx_volume', 0.6)
+    game_controls = settings.get('controls', {
+        'accelerate_right': pygame.K_RIGHT,
+        'accelerate_left': pygame.K_LEFT,
+        'shoot': pygame.K_e
+    })
+    
+    # Apply initial volumes
+    if MIXER_AVAILABLE:
+        try:
+            pygame.mixer.music.set_volume(AUDIO_VOLUME_MUSIC)
+        except:
+            pass
     
     # Create start screen
     start_screen = StartScreen()
@@ -790,7 +807,7 @@ def main():
             
             if action == 'start_game':
                 # Go to garage first (which now includes car selection)
-                car = Car(apply_upgrades_now=False)  # Don't apply upgrades yet
+                car = Car(apply_upgrades_now=False, controls=game_controls)  # Don't apply upgrades yet
                 garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                        stop_engine_sound, play_menu_music, AUDIO_ENABLED, _menu_music_loaded,
                        WHITE, BUTTON, BUTTON_HOVER, UPGRADE_BG, EQUIPPED_COLOR, PURCHASED_COLOR)
@@ -808,7 +825,7 @@ def main():
             start_screen.render()
         
         elif game_state == "main_game":
-            main_game_loop()
+            main_game_loop(game_controls)
             # After main game ends (when player presses ESC), return to start screen
             game_state = "start_screen"
             if AUDIO_ENABLED and _menu_music_loaded:
@@ -819,7 +836,17 @@ def main():
             game_state = "start_screen"
         
         elif game_state == "settings":
-            settings_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE, AUDIO_ENABLED)
+            music_vol, sfx_vol, game_controls = settings_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE, AUDIO_ENABLED)
+            # Apply the new volumes
+            AUDIO_VOLUME_MUSIC = music_vol
+            AUDIO_VOLUME_SFX = sfx_vol
+            if MIXER_AVAILABLE:
+                try:
+                    pygame.mixer.music.set_volume(AUDIO_VOLUME_MUSIC)
+                    if _engine_sound:
+                        _engine_sound.set_volume(AUDIO_VOLUME_SFX * ENGINE_VOLUME_IDLE_FACTOR)
+                except:
+                    pass
             game_state = "start_screen"
         
         pygame.display.flip()
