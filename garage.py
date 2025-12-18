@@ -141,6 +141,10 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
         else:
             y_offset = 0
             for upgrade in upgrades:
+                # Skip stat upgrades from the equip list display
+                if getattr(upgrade, 'stat_upgrade', False):
+                    continue
+                    
                 item_rect = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset + scroll_y, 230, 60)
                 
                 # Different colors based on status
@@ -177,6 +181,37 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                 text = small_font.render(f"{upgrade.name} - ${upgrade.price}{status}", True, text_color)
                 screen.blit(text, (item_rect.x + 90, item_rect.y + 15))
                 y_offset += 70
+            
+            # Add stat upgrades at the bottom
+            for upgrade in upgrades:
+                if getattr(upgrade, 'stat_upgrade', False):
+                    upgrade_rect = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset + scroll_y, 230, 35)
+                    
+                    pygame.draw.rect(screen, (60, 60, 80), upgrade_rect, border_radius=5)
+                    pygame.draw.rect(screen, WHITE, upgrade_rect, 1, border_radius=5)
+                    
+                    # Show upgrade name and current level
+                    level_text = f"{upgrade.name} Lv.{upgrade.times_purchased}"
+                    name_surf = small_font.render(level_text, True, WHITE)
+                    screen.blit(name_surf, (upgrade_rect.x + 5, upgrade_rect.y + 8))
+                    
+                    # Buy button
+                    buy_btn = pygame.Rect(upgrade_rect.x + 140, upgrade_rect.y + 3, 80, 28)
+                    can_afford = state.money >= upgrade.price
+                    btn_color = BUTTON_HOVER if buy_btn.collidepoint(pygame.mouse.get_pos()) and can_afford else BUTTON
+                    if not can_afford:
+                        btn_color = (100, 50, 50)
+                        
+                    pygame.draw.rect(screen, btn_color, buy_btn, border_radius=5)
+                    pygame.draw.rect(screen, WHITE, buy_btn, 1, border_radius=5)
+                    
+                    price_surf = small_font.render(f"${upgrade.price}", True, WHITE if can_afford else (150, 150, 150))
+                    screen.blit(price_surf, (buy_btn.centerx - price_surf.get_width()//2, buy_btn.centery - price_surf.get_height()//2))
+                    
+                    # Store rect for click detection
+                    upgrade._buy_btn_rect = buy_btn
+                    
+                    y_offset += 40
 
         # Car preview at bottom with arrows
         # Gebruik de huidige car image (met eventuele upgrades)
@@ -235,6 +270,15 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                 save_all_upgrades_status()
                 pygame.quit()
                 sys.exit()
+            elif e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_ESCAPE:
+                    # ESC - Return to main menu
+                    save_all_upgrades_status()
+                    return 'back_to_menu'
+                elif e.key == pygame.K_SPACE:
+                    # SPACE - Start game
+                    save_all_upgrades_status()
+                    return 'start_game'
             elif e.type == pygame.MOUSEBUTTONDOWN:
                 if confirmation_active:
                     if btn_yes.collidepoint(e.pos):
@@ -294,8 +338,20 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                     
                     # Check upgrade clicks
                     if upgrades:
+                        # Check stat upgrade buy buttons
+                        for upgrade in upgrades:
+                            if getattr(upgrade, 'stat_upgrade', False) and hasattr(upgrade, '_buy_btn_rect'):
+                                if upgrade._buy_btn_rect.collidepoint(e.pos) and state.money >= upgrade.price:
+                                    state.money -= upgrade.price
+                                    car.purchase_upgrade(upgrade)
+                                    # Reload upgrades to get updated prices
+                                    upgrades = load_upgrades()
+                        
+                        # Check regular upgrade clicks
                         y_offset_check = 0
                         for upgrade in upgrades:
+                            if getattr(upgrade, 'stat_upgrade', False):
+                                continue
                             item_rect_check = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset_check + scroll_y, 230, 60)
                             if item_rect_check.collidepoint(e.pos):
                                 if not upgrade.purchased:

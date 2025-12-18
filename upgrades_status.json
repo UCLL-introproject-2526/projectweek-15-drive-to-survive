@@ -1,23 +1,87 @@
 {
-  "current_car": "mustang",
+  "current_car": "default",
+  "default.Armor": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 250
+  },
+  "default.Fuel Tank": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 150
+  },
   "default.Ramp": {
     "purchased": false,
-    "equipped": false
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 100
   },
   "default.Turret": {
-    "purchased": true,
-    "equipped": true
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 200
+  },
+  "mus.Armor": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 250
+  },
+  "mus.Fuel Tank": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 150
+  },
+  "mustang.Armor": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 250
   },
   "mustang.blade": {
     "purchased": false,
-    "equipped": false
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 100
   },
   "mustang.chicken": {
-    "purchased": true,
-    "equipped": true
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 200
   },
-  "Default.Turret": {
-    "purchased": true,
-    "equipped": true
+  "mustang.Fuel Tank": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 150
+  },
+  "porche.Armor": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 250
+  },
+  "porche.Fuel Tank": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 150
+  },
+  "vroom.Armor": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 250
+  },
+  "vroom.Fuel Tank": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 150
   }
 }
