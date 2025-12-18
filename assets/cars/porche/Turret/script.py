@@ -13,6 +13,8 @@ class TurretUpgrade:
         self.max_ammo = 5  # Maximum ammunition (can be increased by upgrades)
         self.has_shooting = True  # Flag for UI detection
         self.shoot_sound = self._create_shoot_sound()
+        if self.shoot_sound:
+            self.shoot_sound.set_volume(0.6)  # Set volume for turret sound
         
     def update(self, keys, zombies):
         # Decrease cooldown
@@ -155,21 +157,15 @@ class TurretUpgrade:
                             pygame.mixer.init()
                         except Exception:
                             pass
-                    self.shoot_sound.play()
-                elif getattr(self, '_music_fallback', None):
-                    # Fallback: use music channel to play the short file (may interrupt music)
+                    # Use find_channel to avoid stopping other sounds
                     try:
-                        if not pygame.mixer.get_init():
-                            try:
-                                pygame.mixer.init()
-                            except Exception:
-                                pass
-                        pygame.mixer.music.load(self._music_fallback)
-                        pygame.mixer.music.set_volume(1)
-                        pygame.mixer.music.play(0)
-                    except Exception as e:
-                        # give up silently
-                        print(f"Failed to play chicken fallback via music: {e}")
+                        channel = pygame.mixer.find_channel()
+                        if channel:
+                            channel.play(self.shoot_sound)
+                        else:
+                            self.shoot_sound.play()
+                    except:
+                        self.shoot_sound.play()
             except Exception:
                 pass
             

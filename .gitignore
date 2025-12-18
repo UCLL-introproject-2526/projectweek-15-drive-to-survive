@@ -3,6 +3,7 @@ upgrades_status.json
 survival_upgrades.json
 upgrades_status_backup.json
 
+build/
 __pycache__/
 *.py[codz]
 *$py.class

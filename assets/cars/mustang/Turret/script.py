@@ -14,46 +14,39 @@ class TurretUpgrade:
         self.max_ammo = 5  # Maximum ammunition (can be increased by upgrades)
         self.has_shooting = True  # Flag for UI detection
         
-        # Load shoot sound effect
+        # Load shoot sound effect - WAV is best for browsers, then OGG, then MP3
         self.shoot_sound = None
-        try:
-            # Prefer browser-friendly formats first (wav/ogg), then mp3
-            candidates = [
-                os.path.join("assets", "music", "kipje.wav"),
-                os.path.join("assets", "music", "kipje.ogg"),
-                os.path.join("assets", "music", "kipje.mp3"),
-            ]
-            found = None
-            for p in candidates:
-                if os.path.exists(p):
-                    found = p
-                    break
-
-            if found:
+        
+        # Try formats in order: WAV (best for browsers) -> OGG -> MP3 -> synthesized
+        sound_candidates = [
+            ("WAV", os.path.join("assets", "music", "kipje.wav")),
+            ("OGG", os.path.join("assets", "music", "kipje.ogg")),
+            ("MP3", os.path.join("assets", "music", "kipje.mp3")),
+        ]
+        
+        for format_name, sound_path in sound_candidates:
+            if os.path.exists(sound_path):
                 try:
-                    # Ensure mixer is initialised (in browser this must happen after a user gesture)
-                    if not pygame.mixer.get_init():
-                        try:
-                            pygame.mixer.init()
-                        except Exception:
-                            pass
-
-                    # Try to load as a Sound object first
-                    self.shoot_sound = pygame.mixer.Sound(found)
-                    self.shoot_sound.set_volume(1)
+                    self.shoot_sound = pygame.mixer.Sound(sound_path)
+                    self.shoot_sound.set_volume(0.7)
+                    print(f"Chicken: Loaded {format_name} sound from {sound_path}")
+                    break  # Stop after first successful load
                 except Exception as e:
-                    # In some environments Sound() fails for certain codecs; fall back to using music streaming
-                    print(f"Could not load chicken shoot as Sound ({found}): {e}; will try music-playback fallback.")
-                    self.shoot_sound = None
-                    self._music_fallback = found
-            else:
-                # No file found; synthesize fallback
+                    print(f"Chicken: Failed to load {format_name} from {sound_path}: {e}")
+                    continue
+        
+        # If no file worked, use synthesized fallback sound
+        if self.shoot_sound is None:
+            print("Chicken: No sound file could be loaded, using synthesized fallback")
+            try:
                 self.shoot_sound = self._create_shoot_sound()
-                self._music_fallback = None
-        except Exception as e:
-            print(f"Could not load or synthesize chicken shoot sound: {e}")
-            self.shoot_sound = None
-            self._music_fallback = None
+                if self.shoot_sound:
+                    self.shoot_sound.set_volume(0.7)
+                    print("Chicken: Using synthesized fallback sound")
+                else:
+                    print("Chicken: ERROR - synthesized sound creation returned None")
+            except Exception as e:
+                print(f"Chicken: ERROR - Failed to create synthesized sound: {e}")
         
     def update(self, keys, zombies):
         # Decrease cooldown
@@ -63,6 +56,7 @@ class TurretUpgrade:
         # Shoot when the shoot key is pressed (use car's control settings)
         shoot_key = self.car.controls.get('shoot', pygame.K_e)
         if keys[shoot_key] and self.cooldown == 0 and self.ammo > 0:
+            print(f"Chicken: Attempting to shoot, ammo={self.ammo}, shoot_sound={self.shoot_sound is not None}")
             if self.shoot(zombies):  # Only consume ammo if we actually shot
                 self.cooldown = self.max_cooldown
                 self.ammo -= 1
@@ -156,7 +150,6 @@ class TurretUpgrade:
 
             try:
                 sound = pygame.mixer.Sound(buffer=bytes(buf))
-                sound.set_volume(1)
                 return sound
             except Exception as e:
                 print(f"Failed to create pygame Sound from buffer: {e}")
@@ -182,31 +175,16 @@ class TurretUpgrade:
                     
         if nearest_zombie:
             # Play shoot sound only when we have a target
-            try:
-                if self.shoot_sound:
-                    # Ensure mixer ready
-                    if not pygame.mixer.get_init():
-                        try:
-                            pygame.mixer.init()
-                        except Exception:
-                            pass
+            print(f"Chicken: Found target zombie, playing sound... (shoot_sound exists: {self.shoot_sound is not None})")
+            if self.shoot_sound:
+                try:
+                    print(f"Chicken: Playing kipje sound now!")
                     self.shoot_sound.play()
-                elif getattr(self, '_music_fallback', None):
-                    # Fallback: use music channel to play the short file (may interrupt music)
-                    try:
-                        if not pygame.mixer.get_init():
-                            try:
-                                pygame.mixer.init()
-                            except Exception:
-                                pass
-                        pygame.mixer.music.load(self._music_fallback)
-                        pygame.mixer.music.set_volume(1)
-                        pygame.mixer.music.play(0)
-                    except Exception as e:
-                        # give up silently
-                        print(f"Failed to play chicken fallback via music: {e}")
-            except Exception:
-                pass
+                    print(f"Chicken: Sound play() called successfully")
+                except Exception as e:
+                    print(f"Error playing chicken sound: {e}")
+            else:
+                print("Warning: shoot_sound is None, no chicken sound will play")
             
             # Calculate direction
             start_x = WIDTH//3
