@@ -25,6 +25,11 @@ class Upgrade:
                 self.price = upgrade_data.get("price", 50)
                 self.has_script = upgrade_data.get("script", False)
                 self.z_index = upgrade_data.get("z-index", 0)
+                self.fuel_increase = upgrade_data.get("fuel_increase", 0)
+                self.health_increase = upgrade_data.get("health_increase", 0)
+                self.stat_upgrade = upgrade_data.get("stat_upgrade", False)
+                self.price_multiplier = upgrade_data.get("price_multiplier", 1.0)
+                self.times_purchased = 0
             else:
                 self.car_damage = 0
                 self.damage_reduction = 0
@@ -32,6 +37,11 @@ class Upgrade:
                 self.price = 50
                 self.has_script = False
                 self.z_index = 0
+                self.fuel_increase = 0
+                self.health_increase = 0
+                self.stat_upgrade = False
+                self.price_multiplier = 1.0
+                self.times_purchased = 0
         else:
             self.car_damage = 0
             self.damage_reduction = 0
@@ -39,6 +49,11 @@ class Upgrade:
             self.price = 50
             self.has_script = False
             self.z_index = 0
+            self.fuel_increase = 0
+            self.health_increase = 0
+            self.stat_upgrade = False
+            self.price_multiplier = 1.0
+            self.times_purchased = 0
 
         img_file = os.path.join(folder, "image.png")
         if os.path.exists(img_file):
@@ -65,10 +80,15 @@ class Upgrade:
                     if key in status_data:
                         self.purchased = bool(status_data[key].get("purchased", False))
                         self.equipped = bool(status_data[key].get("equipped", False))
+                        self.times_purchased = int(status_data[key].get("times_purchased", 0))
+                        # Load saved price for stat upgrades
+                        if "current_price" in status_data[key]:
+                            self.price = int(status_data[key]["current_price"])
         except Exception as e:
             print(f"Error loading status for {self.name}: {e}")
             self.purchased = False
             self.equipped = False
+            self.times_purchased = 0
 
     def save_status(self):
         try:
@@ -84,7 +104,12 @@ class Upgrade:
             current = get_current_car_type()
             if current:
                 key = f"{current.name}.{self.name}"
-                status_data[key] = {"purchased": bool(self.purchased), "equipped": bool(self.equipped)}
+                status_data[key] = {
+                    "purchased": bool(self.purchased), 
+                    "equipped": bool(self.equipped),
+                    "times_purchased": int(self.times_purchased),
+                    "current_price": int(self.price)
+                }
             else:
                 # no current car - skip saving this individual upgrade status
                 pass
@@ -110,7 +135,7 @@ def load_upgrades():
     for folder_name in os.listdir(car_folder):
         folder_path = os.path.join(car_folder, folder_name)
         if os.path.isdir(folder_path):
-            if os.path.exists(os.path.join(folder_path, "image.png")) or folder_name.lower() in ["ramp", "turret", "default", "mustang"]:
+            if os.path.exists(os.path.join(folder_path, "image.png")) or folder_name.lower() in ["ramp", "turret", "default", "mustang", "fuel tank", "armor"]:
                 try:
                     up = Upgrade(folder_path, folder_name)
                     upgrades_list.append(up)
@@ -142,7 +167,12 @@ def save_all_upgrades_status():
             saved = load_upgrades()
             for up in saved:
                 key = f"{car_name}.{up.name}"
-                status_data[key] = {"purchased": up.purchased, "equipped": up.equipped}
+                status_data[key] = {
+                    "purchased": up.purchased, 
+                    "equipped": up.equipped,
+                    "times_purchased": up.times_purchased,
+                    "current_price": up.price
+                }
         # restore original selection
         if original:
             set_current_car_type(original)
@@ -173,6 +203,9 @@ def load_all_upgrades_status():
                     if key in status_data:
                         upgrade.purchased = bool(status_data[key].get("purchased", False))
                         upgrade.equipped = bool(status_data[key].get("equipped", False))
+                        upgrade.times_purchased = int(status_data[key].get("times_purchased", 0))
+                        if "current_price" in status_data[key]:
+                            upgrade.price = int(status_data[key]["current_price"])
     except Exception as e:
         print(f"Error loading upgrades status: {e}")
 

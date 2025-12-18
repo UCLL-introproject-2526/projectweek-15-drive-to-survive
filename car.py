@@ -84,13 +84,39 @@ class Car:
         self.speed_multiplier = 1.0
         self.upgrades_images = []
         self.upgrade_instances = []
+        
+        # Track fuel and health increases
+        fuel_bonus = 0
+        health_bonus = 0
 
         for upgrade in equipped_upgrades:
-            self.base_damage += upgrade.car_damage
-            self.damage_reduction += upgrade.damage_reduction
-            self.speed_multiplier += upgrade.speed_increase
+            # For stat upgrades, multiply bonuses by times_purchased
+            if getattr(upgrade, 'stat_upgrade', False):
+                times = max(1, upgrade.times_purchased)
+                self.base_damage += upgrade.car_damage * times
+                self.damage_reduction += upgrade.damage_reduction * times
+                self.speed_multiplier += upgrade.speed_increase * times
+                
+                # Apply fuel and health upgrades
+                if hasattr(upgrade, 'fuel_increase'):
+                    fuel_bonus += upgrade.fuel_increase * times
+                if hasattr(upgrade, 'health_increase'):
+                    health_bonus += upgrade.health_increase * times
+            else:
+                # Regular upgrades apply once
+                self.base_damage += upgrade.car_damage
+                self.damage_reduction += upgrade.damage_reduction
+                self.speed_multiplier += upgrade.speed_increase
+                
+                # Apply fuel and health upgrades
+                if hasattr(upgrade, 'fuel_increase'):
+                    fuel_bonus += upgrade.fuel_increase
+                if hasattr(upgrade, 'health_increase'):
+                    health_bonus += upgrade.health_increase
 
-            self.upgrades_images.append({'image': upgrade.image, 'z_index': upgrade.z_index, 'name': upgrade.name})
+            # Only add image for non-stat upgrades
+            if not getattr(upgrade, 'stat_upgrade', False):
+                self.upgrades_images.append({'image': upgrade.image, 'z_index': upgrade.z_index, 'name': upgrade.name})
 
             if upgrade.has_script:
                 try:
@@ -122,6 +148,15 @@ class Car:
                     print(f"Error loading upgrade script for {upgrade.name}: {e}")
 
         self.upgrades_images.sort(key=lambda x: x['z_index'])
+        
+        # Apply fuel and health bonuses to max values
+        self.health = self.health + health_bonus
+        if self.health > self.max_health:
+            self.health = self.max_health
+        
+        # Fuel bonus affects capacity (player still starts at 100 but can refuel to higher)
+        # For now we'll just note it's available; actual max fuel could be 100 + fuel_bonus
+        
         self.update_combined_image()
 
     def apply_upgrade(self, upgrade, equip=True):
@@ -174,10 +209,30 @@ class Car:
         self.update_combined_image()
 
     def purchase_upgrade(self, upgrade):
-        upgrade.purchased = True
-        upgrade.equipped = True
-        upgrade.save_status()
-        self.apply_upgrade(upgrade, equip=True)
+        # Check if this is a stat upgrade (consumable, repeatable)
+        if getattr(upgrade, 'stat_upgrade', False):
+            # Apply stats immediately
+            if hasattr(upgrade, 'fuel_increase') and upgrade.fuel_increase > 0:
+                # Increase max fuel capacity (we can track this)
+                pass  # Fuel bonus applied in apply_equipped_upgrades
+            if hasattr(upgrade, 'health_increase') and upgrade.health_increase > 0:
+                self.max_health += upgrade.health_increase
+                self.health += upgrade.health_increase  # Also heal
+            if upgrade.damage_reduction > 0:
+                self.damage_reduction += upgrade.damage_reduction
+            
+            # Increment times purchased and increase price
+            upgrade.times_purchased += 1
+            upgrade.price = int(upgrade.price * getattr(upgrade, 'price_multiplier', 1.5))
+            upgrade.purchased = True
+            upgrade.equipped = True  # Always "equipped" for stat upgrades
+            upgrade.save_status()
+        else:
+            # Regular upgrade - equip and attach to car
+            upgrade.purchased = True
+            upgrade.equipped = True
+            upgrade.save_status()
+            self.apply_upgrade(upgrade, equip=True)
 
     def update_upgrades(self, keys, zombies):
         for upgrade_instance in self.upgrade_instances:

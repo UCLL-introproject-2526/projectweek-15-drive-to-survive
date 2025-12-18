@@ -205,6 +205,10 @@ class Zombie:
 
 
 class fatZombie(Zombie):
+    def __init__(self, x, level=1):
+        super().__init__(x, level)
+        self.base_damage = 25  # Fat zombies do more damage
+    
     def _give_ammo_to_turrets(self, car, ammo_amount):
         """Override to give 3 ammo for fat zombies."""
         if hasattr(car, 'upgrade_instances'):

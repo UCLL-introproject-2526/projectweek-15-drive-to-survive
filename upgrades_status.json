@@ -1,27 +1,102 @@
 {
-  "current_car": "mustang",
+  "current_car": "default",
   "default.Ramp": {
     "purchased": true,
-    "equipped": true
+    "equipped": true,
+    "times_purchased": 0,
+    "current_price": 100
   },
   "default.Turret": {
     "purchased": true,
-    "equipped": true
+    "equipped": true,
+    "times_purchased": 0,
+    "current_price": 200
   },
   "mustang.blade": {
     "purchased": true,
-    "equipped": true
+    "equipped": true,
+    "times_purchased": 0,
+    "current_price": 100
   },
   "mustang.chicken": {
     "purchased": true,
-    "equipped": true
+    "equipped": true,
+    "times_purchased": 0,
+    "current_price": 200
   },
   "Default.Turret": {
     "purchased": true,
-    "equipped": true
+    "equipped": true,
+    "times_purchased": 0
   },
   "Default.Ramp": {
     "purchased": true,
     "equipped": true
+  },
+  "Default.Armor": {
+    "purchased": true,
+    "equipped": true,
+    "times_purchased": 5,
+    "current_price": 1896
+  },
+  "default.Armor": {
+    "purchased": true,
+    "equipped": true,
+    "times_purchased": 5,
+    "current_price": 1896
+  },
+  "default.Fuel Tank": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 150
+  },
+  "mus.Armor": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 250
+  },
+  "mus.Fuel Tank": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 150
+  },
+  "mustang.Armor": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 250
+  },
+  "mustang.Fuel Tank": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 150
+  },
+  "porche.Armor": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 250
+  },
+  "porche.Fuel Tank": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 150
+  },
+  "vroom.Armor": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 250
+  },
+  "vroom.Fuel Tank": {
+    "purchased": false,
+    "equipped": false,
+    "times_purchased": 0,
+    "current_price": 150
   }
 }
