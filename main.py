@@ -301,10 +301,10 @@ def draw_fuel_bar(car):
     x = 20
     y = 110  # Positioned below health bar with some spacing
     pygame.draw.rect(screen, (40, 40, 0), (x, y, bar_width, bar_height))  # Dark yellow/brown for empty
-    fuel_width = int((car.fuel / 100) * bar_width)
+    fuel_width = int((car.fuel / car.max_fuel) * bar_width)
     pygame.draw.rect(screen, (255, 200, 0), (x, y, fuel_width, bar_height))  # Bright yellow for fuel
     pygame.draw.rect(screen, BLACK, (x, y, bar_width, bar_height), 2)
-    fuel_text = small_font.render(f"Fuel: {int(car.fuel)}%", True, WHITE)
+    fuel_text = small_font.render(f"Fuel: {int(car.fuel)}Liters", True, WHITE)
     screen.blit(fuel_text, (x + 5, y - 25))
 
 def draw_level_info():
@@ -406,6 +406,7 @@ def reset_car(controls=None):
     car.vspeed = 0
     car.health = 40
     car.fuel = 100
+    car.max_fuel = car.fuel
     car.max_health = car.health
     
     # Now apply equipped upgrades

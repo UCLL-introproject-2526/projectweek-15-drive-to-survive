@@ -28,7 +28,8 @@ class Car:
         self.air_angle = None
         self.health = 40
         self.fuel = 100
-        self.max_health = 100
+        self.max_health = self.health
+        self.max_fuel = self.fuel
         
         # Store controls (use defaults if not provided)
         if controls is None:
@@ -154,8 +155,9 @@ class Car:
         if self.health > self.max_health:
             self.health = self.max_health
         
-        # Fuel bonus affects capacity (player still starts at 100 but can refuel to higher)
-        # For now we'll just note it's available; actual max fuel could be 100 + fuel_bonus
+        # Fuel bonus affects capacity - set max fuel and fill it up
+        self.max_fuel = self.fuel + fuel_bonus
+        self.fuel = min(self.fuel + fuel_bonus, self.max_fuel)
         
         self.update_combined_image()
 
@@ -213,8 +215,9 @@ class Car:
         if getattr(upgrade, 'stat_upgrade', False):
             # Apply stats immediately
             if hasattr(upgrade, 'fuel_increase') and upgrade.fuel_increase > 0:
-                # Increase max fuel capacity (we can track this)
-                pass  # Fuel bonus applied in apply_equipped_upgrades
+                # Increase max fuel capacity and add fuel
+                self.max_fuel += upgrade.fuel_increase
+                self.fuel += upgrade.fuel_increase
             if hasattr(upgrade, 'health_increase') and upgrade.health_increase > 0:
                 self.max_health += upgrade.health_increase
                 self.health += upgrade.health_increase  # Also heal
