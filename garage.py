@@ -65,8 +65,14 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
     if AUDIO_ENABLED and _menu_music_loaded:
         play_menu_music()
     
-    # Create an even smaller font for stat upgrades
-    tiny_font = pygame.font.Font(None, 18)
+    # Load custom pixel font for stat upgrades
+    try:
+        tiny_font = pygame.font.Font("assets/fonts/Grand9K Pixel.ttf", 10)
+        upgrade_font = pygame.font.Font("assets/fonts/Grand9K Pixel.ttf", 16)  # Font for regular upgrades
+    except:
+        # Fallback to default font if custom font fails to load
+        tiny_font = pygame.font.Font(None, 18)
+        upgrade_font = small_font
     
     # Laad alle auto's
     car_types_list = get_car_type_list()
@@ -181,7 +187,7 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                     text_color = (150, 150, 150)
                     status = ""
                     
-                text = small_font.render(f"{upgrade.name} - ${upgrade.price}{status}", True, text_color)
+                text = upgrade_font.render(f"{upgrade.name} - ${upgrade.price}{status}", True, text_color)
                 screen.blit(text, (item_rect.x + 90, item_rect.y + 15))
                 y_offset += 70
             
@@ -244,7 +250,8 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
         btn_next = pygame.Rect(WIDTH - 200, HEIGHT - 80, 160, 50)
         color = BUTTON_HOVER if btn_next.collidepoint(pygame.mouse.get_pos()) else BUTTON
         pygame.draw.rect(screen, color, btn_next, border_radius=10)
-        screen.blit(small_font.render("Start Level", True, WHITE), (btn_next.centerx - 50, btn_next.centery - 10))
+        start_text = small_font.render("Start Level", True, WHITE)
+        screen.blit(start_text, (btn_next.centerx - start_text.get_width()//2, btn_next.centery - start_text.get_height()//2))
 
         # Confirmation popup
         if confirmation_active and confirmation_upgrade:
@@ -266,12 +273,14 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
             btn_yes = pygame.Rect(popup_rect.x + 30, popup_rect.y + 60, 100, 40)
             color = BUTTON_HOVER if btn_yes.collidepoint(pygame.mouse.get_pos()) else BUTTON
             pygame.draw.rect(screen, color, btn_yes, border_radius=5)
-            screen.blit(small_font.render("Yes", True, WHITE), (btn_yes.centerx - 20, btn_yes.centery - 10))
+            yes_text = small_font.render("Yes", True, WHITE)
+            screen.blit(yes_text, (btn_yes.centerx - yes_text.get_width()//2, btn_yes.centery - yes_text.get_height()//2))
 
             btn_no = pygame.Rect(popup_rect.x + 170, popup_rect.y + 60, 100, 40)
             color = BUTTON_HOVER if btn_no.collidepoint(pygame.mouse.get_pos()) else BUTTON
             pygame.draw.rect(screen, color, btn_no, border_radius=5)
-            screen.blit(small_font.render("No", True, WHITE), (btn_no.centerx - 15, btn_no.centery - 10))
+            no_text = small_font.render("No", True, WHITE)
+            screen.blit(no_text, (btn_no.centerx - no_text.get_width()//2, btn_no.centery - no_text.get_height()//2))
 
         # Event handling
         for e in pygame.event.get():
