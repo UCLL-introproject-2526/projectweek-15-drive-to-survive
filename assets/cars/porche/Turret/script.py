@@ -71,15 +71,10 @@ class TurretUpgrade:
                             zombie.alive = False
                             killed = True
 
-                        # Add money through the global reference only when killed
+                        # Add money when killed
                         if killed:
-                            import sys
-                            main_module = sys.modules['__main__']
-                            if hasattr(main_module, 'money'):
-                                main_module.money += 15
-                            elif hasattr(main_module, 'money_ref'):
-                                money = main_module.money_ref()
-                                money += 15
+                            import state
+                            state.money += 15
                             
                             # Give ammo based on zombie type
                             # Fat zombies have more health, normal zombies have less
