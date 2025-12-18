@@ -1,0 +1,15 @@
+{
+  "name": "Turret",
+  "description": "turret shoots enimy",
+
+  "z-index": 1,
+  "car_damage": 0,
+  "damage_reduction": 0,
+  "speed_increase": 0,
+  "price": 1200,
+  "script": "True",
+
+  "author": "Bram",
+  "version": "1.0.0",
+  "dependencies": []
+}

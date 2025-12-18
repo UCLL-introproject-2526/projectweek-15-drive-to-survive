@@ -1,26 +1,26 @@
 {
-  "current_car": "default",
+  "current_car": "porche",
   "default.Armor": {
-    "purchased": false,
-    "equipped": false,
-    "times_purchased": 0,
-    "current_price": 250
+    "purchased": true,
+    "equipped": true,
+    "times_purchased": 3,
+    "current_price": 843
   },
   "default.Fuel Tank": {
-    "purchased": false,
-    "equipped": false,
-    "times_purchased": 0,
-    "current_price": 150
+    "purchased": true,
+    "equipped": true,
+    "times_purchased": 3,
+    "current_price": 505
   },
   "default.Ramp": {
-    "purchased": false,
-    "equipped": false,
+    "purchased": true,
+    "equipped": true,
     "times_purchased": 0,
     "current_price": 100
   },
   "default.Turret": {
-    "purchased": false,
-    "equipped": false,
+    "purchased": true,
+    "equipped": true,
     "times_purchased": 0,
     "current_price": 200
   },
@@ -83,5 +83,29 @@
     "equipped": false,
     "times_purchased": 0,
     "current_price": 150
+  },
+  "Default.Ramp": {
+    "purchased": true,
+    "equipped": true,
+    "times_purchased": 0,
+    "current_price": 100
+  },
+  "Default.Fuel Tank": {
+    "purchased": true,
+    "equipped": true,
+    "times_purchased": 3,
+    "current_price": 505
+  },
+  "Default.Armor": {
+    "purchased": true,
+    "equipped": true,
+    "times_purchased": 3,
+    "current_price": 843
+  },
+  "Default.Turret": {
+    "purchased": true,
+    "equipped": true,
+    "times_purchased": 0,
+    "current_price": 200
   }
 }
