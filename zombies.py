@@ -112,16 +112,26 @@ class Zombie:
         self.walk_frames = load_zombie_animation_cached(
             walk_path, "Zombie1-ezgif.com-crop"
         )
+        # Scale each frame individually (avoid passing a list to transform.scale)
+        if self.walk_frames:
+            self.walk_frames_scaled = [pygame.transform.scale(f, (80, 70)) for f in self.walk_frames]
+        else:
+            self.walk_frames_scaled = []
+
         self.death_frames = load_zombie_animation_cached(
             death_path, "zombie1Damaged-ezgif.com-crop"
         )
+        if self.death_frames:
+            self.death_frames_scaled = [pygame.transform.scale(f, (80, 70)) for f in self.death_frames]
+        else:
+            self.death_frames_scaled = []
 
         self.current_frame = 0
         self.animation_speed = 0.15
         self.animation_counter = 0
 
-        if self.walk_frames:
-            self.rect = self.walk_frames[0].get_rect()
+        if self.walk_frames_scaled:
+            self.rect = self.walk_frames_scaled[0].get_rect()
         else:
             self.rect = pygame.Rect(0, 0, 22, 40)
 
@@ -156,10 +166,10 @@ class Zombie:
         self.animation_counter += self.animation_speed
         if self.animation_counter >= 1:
             self.animation_counter = 0
-            if self.dying and self.death_frames:
-                self.current_frame = min(self.current_frame + 1, len(self.death_frames) - 1)
-            elif not self.dying and self.walk_frames:
-                self.current_frame = (self.current_frame + 1) % len(self.walk_frames)
+            if self.dying and self.death_frames_scaled:
+                self.current_frame = min(self.current_frame + 1, len(self.death_frames_scaled) - 1)
+            elif not self.dying and self.walk_frames_scaled:
+                self.current_frame = (self.current_frame + 1) % len(self.walk_frames_scaled)
 
         return money_earned
 
@@ -190,10 +200,10 @@ class Zombie:
         sy = ground_y - self.rect.height
         self.rect.topleft = (sx, sy)
 
-        if self.dying and self.death_frames:
-            frame = self.death_frames[int(self.current_frame)]
-        elif self.walk_frames:
-            frame = self.walk_frames[int(self.current_frame)]
+        if self.dying and self.death_frames_scaled:
+            frame = self.death_frames_scaled[int(self.current_frame)]
+        elif self.walk_frames_scaled:
+            frame = self.walk_frames_scaled[int(self.current_frame)]
         else:
             frame = None
 
@@ -253,6 +263,16 @@ class fatZombie(Zombie):
             self.rect = self.walk_frames[0].get_rect()
         else:
             self.rect = pygame.Rect(0, 0, 30, 50)
+        # Ensure fat zombies also have scaled frame lists for consistent drawing
+        if self.walk_frames:
+            self.walk_frames_scaled = [pygame.transform.scale(f, (120, 100)) for f in self.walk_frames]
+        else:
+            self.walk_frames_scaled = []
+
+        if self.death_frames:
+            self.death_frames_scaled = [pygame.transform.scale(f, (120, 100)) for f in self.death_frames]
+        else:
+            self.death_frames_scaled = []
 
 
 # --------------------

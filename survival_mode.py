@@ -291,7 +291,7 @@ class SurvivalMode:
         
         # Mode indicator
         mode_text = self.font.render("SURVIVAL MODE", True, (255, 255, 0))
-        self.screen.blit(mode_text, (20, 20))
+        self.screen.blit(mode_text, (20, 80))
     
     async def show_results(self):
         """Show survival results screen"""
