@@ -100,6 +100,7 @@ from visual_effects import DayNightCycle, WeatherSystem, determine_weather_for_l
 from level_result import LevelResult
 from upgrades import save_all_upgrades_status, load_all_upgrades_status
 from start_screen import StartScreen
+
 import sys
 
 # Compatibility money proxy so upgrade scripts that reference main_module.money or main_module.money_ref still work
