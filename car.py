@@ -89,6 +89,7 @@ class Car:
         # Track fuel and health increases
         fuel_bonus = 0
         health_bonus = 0
+        ammo_bonus = 0
 
         for upgrade in equipped_upgrades:
             # For stat upgrades, multiply bonuses by times_purchased
@@ -103,6 +104,8 @@ class Car:
                     fuel_bonus += upgrade.fuel_increase * times
                 if hasattr(upgrade, 'health_increase'):
                     health_bonus += upgrade.health_increase * times
+                if hasattr(upgrade, 'ammunition_increase'):
+                    ammo_bonus += upgrade.ammunition_increase * times
             else:
                 # Regular upgrades apply once
                 self.base_damage += upgrade.car_damage
@@ -114,6 +117,8 @@ class Car:
                     fuel_bonus += upgrade.fuel_increase
                 if hasattr(upgrade, 'health_increase'):
                     health_bonus += upgrade.health_increase
+                if hasattr(upgrade, 'ammunition_increase'):
+                    ammo_bonus += upgrade.ammunition_increase
 
             # Only add image for non-stat upgrades
             if not getattr(upgrade, 'stat_upgrade', False):
@@ -151,13 +156,28 @@ class Car:
         self.upgrades_images.sort(key=lambda x: x['z_index'])
         
         # Apply fuel and health bonuses to max values
-        self.health = self.health + health_bonus
-        if self.health > self.max_health:
-            self.health = self.max_health
+        # First update max_health, then increase current health
+        self.max_health = 40 + health_bonus  # Base health is 40
+        self.health = min(self.health + health_bonus, self.max_health)
         
         # Fuel bonus affects capacity - set max fuel and fill it up
-        self.max_fuel = self.fuel + fuel_bonus
+        self.max_fuel = 100 + fuel_bonus  # Base fuel is 100
         self.fuel = min(self.fuel + fuel_bonus, self.max_fuel)
+        
+        # Apply ammo bonus to all turret instances
+        for upgrade_instance in self.upgrade_instances:
+            if hasattr(upgrade_instance, 'has_shooting') and upgrade_instance.has_shooting:
+                if hasattr(upgrade_instance, 'ammo'):
+                    # Set max_ammo and adjust current ammo
+                    base_ammo = 5  # Default starting ammo
+                    new_max_ammo = base_ammo + ammo_bonus
+                    old_max = getattr(upgrade_instance, 'max_ammo', base_ammo)
+                    upgrade_instance.max_ammo = new_max_ammo
+                    # If max increased, fill up to new max; otherwise cap at new max
+                    if new_max_ammo > old_max:
+                        upgrade_instance.ammo = new_max_ammo
+                    else:
+                        upgrade_instance.ammo = min(upgrade_instance.ammo, upgrade_instance.max_ammo)
         
         self.update_combined_image()
 
