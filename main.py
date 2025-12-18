@@ -588,6 +588,17 @@ async def main_game_loop(controls=None):
         # Draw upgrade effects (like bullets)
         car.draw_upgrades(car.world_x, screen)
 
+        # Update zombie positions - make them walk towards the car
+        for z in zombies:
+            if z.alive and not z.dying:
+                # Calculate direction to car and move towards it
+                if z.x < car.world_x:
+                    # Zombie is to the left, move right
+                    z.x += 1.5  # Zombie speed
+                elif z.x > car.world_x:
+                    # Zombie is to the right, move left
+                    z.x -= 1.5
+
         for z in zombies:
             # Pass terrain accessor into zombie update/draw
             gained = z.update(car, get_ground_height)
