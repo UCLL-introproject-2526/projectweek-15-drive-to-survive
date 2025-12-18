@@ -1,5 +1,7 @@
 # Byte-compiled / optimized / DLL files
 upgrades_status.json
+survival_upgrades.json
+upgrades_status_backup.json
 
 __pycache__/
 *.py[codz]

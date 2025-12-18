@@ -377,6 +377,9 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                             if state.money >= confirmation_upgrade.price and not confirmation_upgrade.purchased:
                                 state.money -= confirmation_upgrade.price
                                 car.purchase_upgrade(confirmation_upgrade)
+                                # Keep infinite money in survival mode
+                                if state.in_survival_mode:
+                                    state.money = 999999999
                         elif confirmation_action == 'toggle_equip':
                             # Toggle equip/unequip
                             if confirmation_upgrade.equipped:
@@ -437,6 +440,9 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                                 if not is_locked and upgrade._buy_btn_rect.collidepoint(e.pos) and state.money >= upgrade.price:
                                     state.money -= upgrade.price
                                     car.purchase_upgrade(upgrade)
+                                    # Keep infinite money in survival mode
+                                    if state.in_survival_mode:
+                                        state.money = 999999999
                                     # Reload upgrades to get updated prices
                                     upgrades = load_upgrades()
                         

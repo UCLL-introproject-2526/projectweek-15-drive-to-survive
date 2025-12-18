@@ -6,6 +6,7 @@ import math
 import random
 import importlib.util
 import io
+import shutil
 try:
     import wave
 except Exception:
@@ -97,6 +98,7 @@ from levels import get_level_manager, reset_level_manager
 from easter_egg import EasterEgg, invert_screen_colors
 from visual_effects import DayNightCycle, WeatherSystem, determine_weather_for_level
 from level_result import LevelResult
+from upgrades import save_all_upgrades_status, load_all_upgrades_status
 import sys
 
 # Compatibility money proxy so upgrade scripts that reference main_module.money or main_module.money_ref still work
@@ -227,11 +229,13 @@ class StartScreen:
         button_height = 60
         button_x = WIDTH//2 - button_width//2
         
-        self.start_button = Button(button_x, 300, button_width, button_height, 
-                                  'Start Game', (50, 150, 50), (70, 200, 70))
-        self.credits_button = Button(button_x, 380, button_width, button_height, 
+        self.start_button = Button(button_x, 280, button_width, button_height, 
+                                  'Campaign', (50, 150, 50), (70, 200, 70))
+        self.survival_button = Button(button_x, 360, button_width, button_height,
+                                     'Survival Mode', (150, 100, 50), (200, 130, 70))
+        self.credits_button = Button(button_x, 440, button_width, button_height, 
                                      'Credits', (100, 100, 150), (150, 150, 200))
-        self.quit_button = Button(button_x, 460, button_width, button_height, 
+        self.quit_button = Button(button_x, 520, button_width, button_height, 
                                   'Quit', (150, 50, 50), (200, 70, 70))
         
         # Settings button in top right with icon
@@ -241,6 +245,7 @@ class StartScreen:
     
     def update(self, mouse_pos):
         self.start_button.update(mouse_pos)
+        self.survival_button.update(mouse_pos)
         self.credits_button.update(mouse_pos)
         self.settings_button.update(mouse_pos)
         self.quit_button.update(mouse_pos)
@@ -248,6 +253,8 @@ class StartScreen:
     def handle_click(self, mouse_pos, mouse_pressed):
         if self.start_button.is_clicked(mouse_pos, mouse_pressed):
             return 'start_game'
+        elif self.survival_button.is_clicked(mouse_pos, mouse_pressed):
+            return 'survival_mode'
         elif self.credits_button.is_clicked(mouse_pos, mouse_pressed):
             return 'credits'
         elif self.settings_button.is_clicked(mouse_pos, mouse_pressed):
@@ -260,6 +267,7 @@ class StartScreen:
         self.background.render(screen)
         self.logo.render(screen)
         self.start_button.render(screen)
+        self.survival_button.render(screen)
         self.credits_button.render(screen)
         self.quit_button.render(screen)
         self.settings_button.render(screen)
@@ -580,6 +588,17 @@ async def main_game_loop(controls=None):
         # Draw upgrade effects (like bullets)
         car.draw_upgrades(car.world_x, screen)
 
+        # Update zombie positions - make them walk towards the car
+        for z in zombies:
+            if z.alive and not z.dying:
+                # Calculate direction to car and move towards it
+                if z.x < car.world_x:
+                    # Zombie is to the left, move right
+                    z.x += 1.5  # Zombie speed
+                elif z.x > car.world_x:
+                    # Zombie is to the right, move left
+                    z.x -= 1.5
+
         for z in zombies:
             # Pass terrain accessor into zombie update/draw
             gained = z.update(car, get_ground_height)
@@ -768,7 +787,15 @@ async def main_game_loop(controls=None):
 
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
-                save_all_upgrades_status()
+                # Reset all upgrade save files when quitting
+                try:
+                    with open("upgrades_status.json", "w") as f:
+                        json.dump({}, f)
+                    if os.path.exists("survival_upgrades.json"):
+                        with open("survival_upgrades.json", "w") as f:
+                            json.dump({}, f)
+                except Exception as e:
+                    print(f"Error resetting upgrade files: {e}")
                 pygame.quit()
                 sys.exit()
             elif e.type == pygame.KEYDOWN:
@@ -840,7 +867,15 @@ async def main():
         # Handle events
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
-                save_all_upgrades_status()
+                # Reset all upgrade save files when quitting
+                try:
+                    with open("upgrades_status.json", "w") as f:
+                        json.dump({}, f)
+                    if os.path.exists("survival_upgrades.json"):
+                        with open("survival_upgrades.json", "w") as f:
+                            json.dump({}, f)
+                except Exception as e:
+                    print(f"Error resetting upgrade files: {e}")
                 running = False
                 break
             elif e.type == pygame.KEYDOWN:
@@ -871,6 +906,8 @@ async def main():
                 if garage_result == 'start_game':
                     game_state = "main_game"
                 # Otherwise stay on start_screen
+            elif action == 'survival_mode':
+                game_state = "survival"
             elif action == 'credits':
                 game_state = "credits"
             elif action == 'settings':
@@ -889,6 +926,108 @@ async def main():
             if audio_manager.AUDIO_ENABLED and audio_manager._menu_music_loaded:
                 audio_manager.play_menu_music()
         
+        elif game_state == "survival":
+            # Start survival mode with garage - keep upgrades and money separate
+            # Save current campaign state (money only, not upgrades)
+            original_money = state.money
+            
+            # Backup campaign upgrades to a temp variable
+            campaign_upgrades_backup = None
+            if os.path.exists("upgrades_status.json"):
+                try:
+                    with open("upgrades_status.json", "r") as f:
+                        campaign_upgrades_backup = json.load(f)
+                except Exception:
+                    campaign_upgrades_backup = {}
+            
+            # Load survival-specific upgrades into upgrades_status.json
+            if os.path.exists("survival_upgrades.json"):
+                try:
+                    with open("survival_upgrades.json", "r") as f:
+                        survival_data = json.load(f)
+                    with open("upgrades_status.json", "w") as f:
+                        json.dump(survival_data, f)
+                    load_all_upgrades_status()
+                except Exception as e:
+                    print(f"Error loading survival upgrades: {e}")
+                    with open("upgrades_status.json", "w") as f:
+                        json.dump({}, f)
+                    load_all_upgrades_status()
+            else:
+                # First time survival - start with empty upgrades
+                with open("upgrades_status.json", "w") as f:
+                    json.dump({}, f)
+                load_all_upgrades_status()
+            
+            # Set infinite money for survival mode garage
+            state.money = 999999999
+            state.in_survival_mode = True  # Flag that we're in survival mode
+            
+            # Go to garage first
+            car = Car(apply_upgrades_now=False, controls=game_controls)
+            garage_result = await garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
+                   audio_manager.stop_engine_sound, audio_manager.play_menu_music, audio_manager.AUDIO_ENABLED, audio_manager._menu_music_loaded,
+                   WHITE, BUTTON, BUTTON_HOVER, UPGRADE_BG, EQUIPPED_COLOR, PURCHASED_COLOR)
+            
+            # Save survival upgrades DIRECTLY to survival_upgrades.json
+            # Read current state from upgrades_status.json (which has survival data)
+            try:
+                with open("upgrades_status.json", "r") as f:
+                    current_survival_data = json.load(f)
+                # Write directly to survival_upgrades.json
+                with open("survival_upgrades.json", "w") as f:
+                    json.dump(current_survival_data, f, indent=2)
+            except Exception as e:
+                print(f"Error saving survival upgrades: {e}")
+            
+            # Restore campaign upgrades IMMEDIATELY (before any save_all_upgrades_status call)
+            if campaign_upgrades_backup is not None:
+                with open("upgrades_status.json", "w") as f:
+                    json.dump(campaign_upgrades_backup, f, indent=2)
+            else:
+                with open("upgrades_status.json", "w") as f:
+                    json.dump({}, f)
+            load_all_upgrades_status()  # Reload campaign upgrades
+            
+            # Apply survival upgrades to car if starting game
+            if garage_result == 'start_game':
+                # Temporarily load survival upgrades just for the car
+                with open("survival_upgrades.json", "r") as f:
+                    survival_data = json.load(f)
+                with open("upgrades_status.json", "w") as f:
+                    json.dump(survival_data, f)
+                load_all_upgrades_status()
+                car.apply_equipped_upgrades()
+                # Restore campaign upgrades again
+                if campaign_upgrades_backup is not None:
+                    with open("upgrades_status.json", "w") as f:
+                        json.dump(campaign_upgrades_backup, f)
+                else:
+                    with open("upgrades_status.json", "w") as f:
+                        json.dump({}, f)
+                load_all_upgrades_status()
+            
+            # Restore original money
+            state.money = original_money
+            
+            # Start survival if they chose to start
+            if garage_result == 'start_game':
+                # Keep infinite money during survival gameplay
+                state.money = 999999999
+                from survival_mode import SurvivalMode
+                survival = SurvivalMode(screen, clock, WIDTH, HEIGHT, font, small_font, car)
+                await survival.run()
+                # Restore campaign money after survival ends
+                state.money = original_money
+            
+            # Clear survival mode flag (whether they played or went back to menu)
+            state.in_survival_mode = False
+            
+            # Return to menu
+            game_state = "start_screen"
+            if audio_manager.AUDIO_ENABLED and audio_manager._menu_music_loaded:
+                audio_manager.play_menu_music()
+        
         elif game_state == "credits":
             await credits_screen(screen, clock, WIDTH, HEIGHT, font, small_font, WHITE)
             game_state = "start_screen"
@@ -902,6 +1041,16 @@ async def main():
         pygame.display.flip()
         clock.tick(60)
         await asyncio.sleep(0)
+    
+    # Reset all upgrade save files when quitting
+    try:
+        with open("upgrades_status.json", "w") as f:
+            json.dump({}, f)
+        if os.path.exists("survival_upgrades.json"):
+            with open("survival_upgrades.json", "w") as f:
+                json.dump({}, f)
+    except Exception as e:
+        print(f"Error resetting upgrade files: {e}")
     
     pygame.quit()
     sys.exit()
