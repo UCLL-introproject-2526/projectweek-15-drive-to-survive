@@ -39,22 +39,23 @@ class EasterEgg:
         if self.collected:
             return False
         
-        # Simple distance-based collision
-        car_center_x = car.world_x + car.rect.width // 2
-        egg_center_x = self.world_x + self.width // 2
-        car_center_y = car.y + car.rect.height // 2
+        # Improved collision detection that works with all car types
+        # Use world_x position directly for more reliable detection
+        car_left = car.world_x
+        car_right = car.world_x + car.rect.width
+        car_top = car.y
+        car_bottom = car.y + car.rect.height
+        
+        egg_left = self.world_x
+        egg_right = self.world_x + self.width
         egg_y = get_ground_height(self.world_x) - self.height
-        egg_center_y = egg_y + self.height // 2
+        egg_top = egg_y
+        egg_bottom = egg_y + self.height
         
-        distance = math.sqrt((car_center_x - egg_center_x)**2 + (car_center_y - egg_center_y)**2)
-        
-        # DEBUG: Print collision info
-        if car.world_x < -1500:  # Only print when car is near easter egg area
-            print(f"DEBUG: Car X: {car.world_x:.1f}, Egg X: {self.world_x}, Distance: {distance:.1f}")
-        
-        if distance < 50:  # Collision threshold
+        # Check if rectangles overlap (AABB collision)
+        if (car_left < egg_right and car_right > egg_left and
+            car_top < egg_bottom and car_bottom > egg_top):
             self.collected = True
-            print(f"EASTER EGG COLLECTED! Distance was: {distance:.1f}")
             return True
         return False
     
@@ -67,11 +68,8 @@ class EasterEgg:
         screen_x = self.world_x - cam_x + screen_width // 3
         screen_y = get_ground_height(self.world_x) - self.height
         
-        # DEBUG: Always draw if car is near, regardless of visibility
-        is_near = abs(cam_x - self.world_x) < 2500
-        
-        # Only draw if visible on screen OR if car is near
-        if (-self.width < screen_x < screen_width + self.width) or is_near:
+        # Only draw if visible on screen
+        if -self.width < screen_x < screen_width + self.width:
             # Rotate the egg for visual appeal
             self.rotation = (self.rotation + 2) % 360
             rotated_surface = pygame.transform.rotate(self.base_surface, self.rotation)
@@ -83,19 +81,6 @@ class EasterEgg:
             glow_surface = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
             pygame.draw.circle(glow_surface, (255, 255, 100, 30), (glow_radius, glow_radius), glow_radius)
             screen.blit(glow_surface, (screen_x + self.width // 2 - glow_radius, screen_y + self.height // 2 - glow_radius))
-            
-            # DEBUG: Draw collision box and position text
-            if is_near:
-                # Draw collision radius
-                pygame.draw.circle(screen, (255, 0, 0), (int(screen_x + self.width // 2), int(screen_y + self.height // 2)), 50, 2)
-                
-                # Show position info
-                try:
-                    debug_font = pygame.font.Font(None, 20)
-                    debug_text = debug_font.render(f"Egg @ {self.world_x}", True, (255, 255, 255))
-                    screen.blit(debug_text, (screen_x, screen_y - 20))
-                except:
-                    pass
 
 
 def invert_screen_colors(screen):

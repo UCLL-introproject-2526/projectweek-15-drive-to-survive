@@ -7,7 +7,6 @@ from levels import get_level_manager
 # Cache for loaded animations
 _animation_cache = {}
 
-
 def load_zombie_animation_cached(folder, base_name):
     """Load animations using `load_animation` helper and cache results."""
     key = (folder, base_name)
