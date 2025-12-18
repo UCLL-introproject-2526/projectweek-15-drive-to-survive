@@ -49,7 +49,7 @@ print(f"Mixer available: {MIXER_AVAILABLE} (init: {pygame.mixer.get_init()})")
 
 WIDTH, HEIGHT = 1000, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Zombie Car")
+pygame.display.set_caption("Drive to Survive")
 clock = pygame.time.Clock()
 
 # Load custom pixel font
