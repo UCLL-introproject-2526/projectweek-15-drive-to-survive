@@ -358,6 +358,13 @@ async def show_replay(replay_frames):
     if not replay_frames or len(replay_frames) == 0:
         return
     
+    # Stop all sounds before replay
+    try:
+        audio_manager.stop_engine_sound()
+        audio_manager.stop_music()
+    except Exception:
+        pass
+    
     player = ReplayPlayer(replay_frames)
     player.start()
     
@@ -369,76 +376,104 @@ async def show_replay(replay_frames):
     frame_counter = 0
     
     while running and not player.is_finished():
-        clock.tick(60)
-        await asyncio.sleep(0)
-        
-        # Get current replay frame
-        frame_data = player.get_current_frame()
-        if not frame_data:
+        try:
+            clock.tick(60)
+            await asyncio.sleep(0)
+            
+            # Get current replay frame
+            frame_data = player.get_current_frame()
+            if not frame_data:
+                break
+            
+            # Apply frame data to car
+            car_data = frame_data['car']
+            car.world_x = car_data['world_x']
+            car.y = car_data['y']
+            car.speed = car_data['speed']
+            car.vspeed = car_data['vspeed']
+            car.angle = car_data['angle']
+            car.health = car_data['health']
+            car.fuel = car_data['fuel']
+            car.max_health = car_data.get('max_health', 40)
+            car.max_fuel = car_data.get('max_fuel', 100)
+            car.rect.topleft = (WIDTH//3 - car.rect.width//2, car.y)
+            
+            # Apply frame data to zombies - safely
+            zombie_data = frame_data.get('zombies', [])
+            for i, zdata in enumerate(zombie_data):
+                if i < len(zombies):
+                    try:
+                        zombies[i].x = zdata.get('x', zombies[i].x)
+                        zombies[i].alive = zdata.get('alive', True)
+                        zombies[i].dying = zdata.get('dying', False)
+                        zombies[i].death_timer = zdata.get('death_timer', 0)
+                        zombies[i].health = zdata.get('health', zombies[i].health)
+                        
+                        # Safely set current_frame within bounds
+                        frame_index = zdata.get('current_frame', 0)
+                        if zombies[i].dying and zombies[i].death_frames:
+                            max_frame = len(zombies[i].death_frames) - 1
+                        elif zombies[i].walk_frames:
+                            max_frame = len(zombies[i].walk_frames) - 1
+                        else:
+                            max_frame = 0
+                        zombies[i].current_frame = min(frame_index, max_frame)
+                        
+                        # Update zombie rect position for drawing
+                        sx = zombies[i].x - car.world_x + WIDTH // 3 - zombies[i].rect.width // 2
+                        ground_y = get_ground_height(zombies[i].x)
+                        sy = ground_y - zombies[i].rect.height
+                        zombies[i].rect.topleft = (sx, sy)
+                    except Exception as e:
+                        # Skip this zombie if there's an error
+                        pass
+            
+            # Draw the scene
+            draw_background(car.world_x)
+            draw_ground(car.world_x)
+            car.draw(screen)
+            
+            # Draw zombies safely
+            for z in zombies:
+                try:
+                    z.draw(screen, car.world_x, get_ground_height)
+                except Exception:
+                    pass
+            
+            # Draw UI
+            draw_health_bar(car)
+            draw_fuel_bar(car)
+            
+            # Show "REPLAY" overlay
+            replay_text = font.render("REPLAY", True, (255, 255, 0))
+            replay_bg = pygame.Surface((replay_text.get_width() + 40, replay_text.get_height() + 20))
+            replay_bg.set_alpha(180)
+            replay_bg.fill((0, 0, 0))
+            screen.blit(replay_bg, (WIDTH//2 - replay_text.get_width()//2 - 20, 20))
+            screen.blit(replay_text, (WIDTH//2 - replay_text.get_width()//2, 30))
+            
+            # Show skip instruction
+            skip_text = small_font.render("Press SPACE to skip", True, WHITE)
+            screen.blit(skip_text, (WIDTH//2 - skip_text.get_width()//2, HEIGHT - 50))
+            
+            # Handle events
+            for e in pygame.event.get():
+                if e.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif e.type == pygame.KEYDOWN:
+                    if e.key == pygame.K_SPACE or e.key == pygame.K_ESCAPE:
+                        running = False
+            
+            pygame.display.flip()
+            
+            # Advance replay
+            player.advance()
+            frame_counter += 1
+        except Exception as e:
+            print(f"Error during replay: {e}")
+            # Continue anyway or break if critical
             break
-        
-        # Apply frame data to car
-        car_data = frame_data['car']
-        car.world_x = car_data['world_x']
-        car.y = car_data['y']
-        car.speed = car_data['speed']
-        car.vspeed = car_data['vspeed']
-        car.angle = car_data['angle']
-        car.health = car_data['health']
-        car.fuel = car_data['fuel']
-        car.max_health = car_data['max_health']
-        car.max_fuel = car_data['max_fuel']
-        car.rect.topleft = (WIDTH//3 - car.rect.width//2, car.y)
-        
-        # Apply frame data to zombies
-        zombie_data = frame_data['zombies']
-        for i, zdata in enumerate(zombie_data):
-            if i < len(zombies):
-                zombies[i].x = zdata['x']
-                zombies[i].alive = zdata['alive']
-                zombies[i].dying = zdata.get('dying', False)
-                zombies[i].death_timer = zdata.get('death_timer', 0)
-                zombies[i].health = zdata['health']
-                zombies[i].current_frame = zdata.get('current_frame', 0)
-        
-        # Draw the scene
-        draw_background(car.world_x)
-        draw_ground(car.world_x)
-        car.draw(screen)
-        
-        for z in zombies:
-            z.draw(screen, car.world_x, get_ground_height)
-        
-        # Draw UI
-        draw_health_bar(car)
-        draw_fuel_bar(car)
-        
-        # Show "REPLAY" overlay
-        replay_text = font.render("REPLAY", True, (255, 255, 0))
-        replay_bg = pygame.Surface((replay_text.get_width() + 40, replay_text.get_height() + 20))
-        replay_bg.set_alpha(180)
-        replay_bg.fill((0, 0, 0))
-        screen.blit(replay_bg, (WIDTH//2 - replay_text.get_width()//2 - 20, 20))
-        screen.blit(replay_text, (WIDTH//2 - replay_text.get_width()//2, 30))
-        
-        # Show skip instruction
-        skip_text = small_font.render("Press SPACE to skip", True, WHITE)
-        screen.blit(skip_text, (WIDTH//2 - skip_text.get_width()//2, HEIGHT - 50))
-        
-        # Handle events
-        for e in pygame.event.get():
-            if e.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            elif e.type == pygame.KEYDOWN:
-                if e.key == pygame.K_SPACE or e.key == pygame.K_ESCAPE:
-                    running = False
-        
-        pygame.display.flip()
-        
-        # Advance replay
-        player.advance()
-        frame_counter += 1
     
     # Show "Replay Ended" message
     if running:
@@ -458,6 +493,13 @@ async def show_replay(replay_frames):
                     sys.exit()
                 elif e.type == pygame.KEYDOWN or e.type == pygame.MOUSEBUTTONDOWN:
                     waiting = False
+    
+    # Reset all audio after replay
+    try:
+        audio_manager.stop_engine_sound()
+        audio_manager.stop_music()
+    except Exception:
+        pass
 
 async def show_level_intro(level_number):
     """Display level introduction screen before starting the level"""
@@ -536,6 +578,12 @@ async def main_game_loop(controls=None):
             'shoot': pygame.K_e
         }
     
+    # Stop menu music before showing level intro
+    try:
+        audio_manager.stop_music()
+    except Exception:
+        pass
+    
     # Show level intro screen
     await show_level_intro(state.current_level)
     
@@ -545,12 +593,19 @@ async def main_game_loop(controls=None):
     car = reset_car(controls)
     zombies = spawn_zombies(state.current_level) or []
 
-    # Start background music for gameplay
+    # Ensure all audio is stopped and reset before starting
+    try:
+        audio_manager.stop_engine_sound()
+        audio_manager.stop_music()
+    except Exception:
+        pass
+    
+    # Small delay to ensure clean state
+    await asyncio.sleep(0.05)
+    
+    # Start game audio (music and engine)
     if audio_manager.AUDIO_ENABLED and audio_manager._bg_music_loaded:
         audio_manager.play_bg_music()
-    else:
-        # If no background track available, stop any menu music
-        audio_manager.stop_music()
 
     engine_playing_local = False
     # Track current engine volume factor (0..1 relative multiplier to AUDIO_VOLUME_SFX)
@@ -717,6 +772,12 @@ async def main_game_loop(controls=None):
             pygame.display.flip()
             await asyncio.sleep(2)
             
+            # Stop engine sound before replay or going to garage
+            try:
+                audio_manager.stop_engine_sound()
+            except Exception:
+                pass
+            
             # Show replay if player died (not if level completed)
             if show_replay_after and has_replay():
                 replay_frames = get_replay()
@@ -730,6 +791,13 @@ async def main_game_loop(controls=None):
             state.distance = 0
             set_current_level(state.current_level)
             clear_terrain()
+            
+            # Ensure engine sound is stopped before garage
+            try:
+                audio_manager.stop_engine_sound()
+            except Exception:
+                pass
+            
             car = reset_car(controls)  # This will reapply all purchased upgrades
             garage_result = await garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                    audio_manager.stop_engine_sound, audio_manager.play_menu_music, audio_manager.AUDIO_ENABLED, audio_manager._menu_music_loaded,
@@ -737,6 +805,39 @@ async def main_game_loop(controls=None):
             # If they went back to menu, exit the game loop
             if garage_result == 'back_to_menu':
                 running = False
+            
+            # Restart audio after garage when starting new game
+            if garage_result == 'start_game':
+                # Stop all audio first
+                try:
+                    audio_manager.stop_engine_sound()
+                    audio_manager.stop_music()
+                except Exception:
+                    pass
+                
+                # Small delay
+                await asyncio.sleep(0.05)
+                
+                # Restart game music
+                if audio_manager.AUDIO_ENABLED and audio_manager._bg_music_loaded:
+                    audio_manager.play_bg_music()
+                
+                # Restart engine sound
+                engine_playing_local = False
+                engine_current_factor = 0.0
+                if audio_manager.AUDIO_ENABLED and _engine_sound:
+                    try:
+                        engine_current_factor = audio_manager.ENGINE_VOLUME_IDLE_FACTOR
+                        try:
+                            _engine_sound.set_volume(audio_manager.AUDIO_VOLUME_SFX * engine_current_factor)
+                        except Exception:
+                            _engine_sound.set_volume(audio_manager.AUDIO_VOLUME_SFX)
+                        _engine_sound.play(-1)
+                        engine_playing_local = True
+                    except Exception as e:
+                        print(f"Failed to restart engine idle sound: {e}")
+                        engine_playing_local = False
+            
             zombies = spawn_zombies(state.current_level) or []
 
         for e in pygame.event.get():

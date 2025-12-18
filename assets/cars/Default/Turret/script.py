@@ -10,6 +10,7 @@ class TurretUpgrade:
         self.bullet_speed = 8
         self.bullet_damage = 20
         self.ammo = 5  # Starting ammunition
+        self.max_ammo = 5  # Maximum ammunition (can be increased by upgrades)
         self.has_shooting = True  # Flag for UI detection
         
     def update(self, keys, zombies):
@@ -20,9 +21,9 @@ class TurretUpgrade:
         # Shoot when the shoot key is pressed (use car's control settings)
         shoot_key = self.car.controls.get('shoot', pygame.K_e)
         if keys[shoot_key] and self.cooldown == 0 and self.ammo > 0:
-            self.shoot(zombies)
-            self.cooldown = self.max_cooldown
-            self.ammo -= 1
+            if self.shoot(zombies):  # Only consume ammo if we actually shot
+                self.cooldown = self.max_cooldown
+                self.ammo -= 1
             
         # Update bullets
         for bullet in self.bullets[:]:
@@ -94,7 +95,7 @@ class TurretUpgrade:
                         
     def shoot(self, zombies):
         if not zombies:
-            return
+            return False
             
         # Find nearest zombie in front of car
         nearest_zombie = None
@@ -125,6 +126,8 @@ class TurretUpgrade:
                 'dx': dx/length * self.bullet_speed,
                 'dy': dy/length * self.bullet_speed
             })
+            return True
+        return False
             
     def draw(self, cam_x):
         # Draw bullets
