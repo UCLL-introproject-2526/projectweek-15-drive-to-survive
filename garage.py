@@ -270,6 +270,15 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                 save_all_upgrades_status()
                 pygame.quit()
                 sys.exit()
+            elif e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_ESCAPE:
+                    # ESC - Return to main menu
+                    save_all_upgrades_status()
+                    return 'back_to_menu'
+                elif e.key == pygame.K_SPACE:
+                    # SPACE - Start game
+                    save_all_upgrades_status()
+                    return 'start_game'
             elif e.type == pygame.MOUSEBUTTONDOWN:
                 if confirmation_active:
                     if btn_yes.collidepoint(e.pos):
