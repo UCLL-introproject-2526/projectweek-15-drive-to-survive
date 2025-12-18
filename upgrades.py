@@ -27,6 +27,7 @@ class Upgrade:
                 self.z_index = upgrade_data.get("z-index", 0)
                 self.fuel_increase = upgrade_data.get("fuel_increase", 0)
                 self.health_increase = upgrade_data.get("health_increase", 0)
+                self.ammunition_increase = upgrade_data.get("ammunition_increase", 0)
                 self.stat_upgrade = upgrade_data.get("stat_upgrade", False)
                 self.price_multiplier = upgrade_data.get("price_multiplier", 1.0)
                 self.times_purchased = 0
@@ -51,6 +52,7 @@ class Upgrade:
             self.z_index = 0
             self.fuel_increase = 0
             self.health_increase = 0
+            self.ammunition_increase = 0
             self.stat_upgrade = False
             self.price_multiplier = 1.0
             self.times_purchased = 0
@@ -135,7 +137,7 @@ def load_upgrades():
     for folder_name in os.listdir(car_folder):
         folder_path = os.path.join(car_folder, folder_name)
         if os.path.isdir(folder_path):
-            if os.path.exists(os.path.join(folder_path, "image.png")) or folder_name.lower() in ["ramp", "turret", "default", "mustang", "fuel tank", "armor"]:
+            if os.path.exists(os.path.join(folder_path, "image.png")) or folder_name.lower() in ["ramp", "turret", "default", "mustang", "fuel tank", "armor", "ammunition"]:
                 try:
                     up = Upgrade(folder_path, folder_name)
                     upgrades_list.append(up)
@@ -224,15 +226,16 @@ class SimpleTurret:
         self.max_cooldown = 15
         self.bullet_speed = 8
         self.ammo = 5  # Starting ammunition
+        self.max_ammo = 5  # Maximum ammunition (can be increased by upgrades)
         self.has_shooting = True  # Flag for UI detection
 
     def update(self, keys, zombies):
         if self.cooldown > 0:
             self.cooldown -= 1
         if keys.get('e') and self.cooldown == 0 and self.ammo > 0:
-            self.shoot(zombies)
-            self.cooldown = self.max_cooldown
-            self.ammo -= 1
+            if self.shoot(zombies):  # Only consume ammo if we actually shot
+                self.cooldown = self.max_cooldown
+                self.ammo -= 1
 
         for bullet in self.bullets[:]:
             bullet['x'] += bullet['dx']
@@ -288,7 +291,7 @@ class SimpleTurret:
 
     def shoot(self, zombies):
         if not zombies:
-            return
+            return False
         nearest = None
         min_d = float('inf')
         for z in zombies:
@@ -306,3 +309,5 @@ class SimpleTurret:
             dy = target_y - start_y
             length = max(0.1, (dx*dx + dy*dy)**0.5)
             self.bullets.append({'x': start_x, 'y': start_y, 'dx': dx/length*self.bullet_speed, 'dy': dy/length*self.bullet_speed})
+            return True
+        return False

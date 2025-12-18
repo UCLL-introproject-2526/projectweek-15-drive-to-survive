@@ -174,10 +174,13 @@ class Zombie:
                         # Verify the upgrade is actually equipped
                         if hasattr(upgrade_instance, '_upgrade_ref'):
                             if upgrade_instance._upgrade_ref.equipped:
-                                upgrade_instance.ammo += ammo_amount
+                                # Respect max_ammo limit
+                                max_ammo = getattr(upgrade_instance, 'max_ammo', 999)
+                                upgrade_instance.ammo = min(upgrade_instance.ammo + ammo_amount, max_ammo)
                         else:
                             # Fallback for upgrades without reference
-                            upgrade_instance.ammo += ammo_amount
+                            max_ammo = getattr(upgrade_instance, 'max_ammo', 999)
+                            upgrade_instance.ammo = min(upgrade_instance.ammo + ammo_amount, max_ammo)
 
     def draw(self, surface, cam_x, terrain):
         if not (self.alive or self.dying):
@@ -219,10 +222,13 @@ class fatZombie(Zombie):
                         # Verify the upgrade is actually equipped
                         if hasattr(upgrade_instance, '_upgrade_ref'):
                             if upgrade_instance._upgrade_ref.equipped:
-                                upgrade_instance.ammo += 3  # Fat zombie gives 3 ammo
+                                # Respect max_ammo limit
+                                max_ammo = getattr(upgrade_instance, 'max_ammo', 999)
+                                upgrade_instance.ammo = min(upgrade_instance.ammo + 3, max_ammo)  # Fat zombie gives 3 ammo
                         else:
                             # Fallback for upgrades without reference
-                            upgrade_instance.ammo += 3  # Fat zombie gives 3 ammo
+                            max_ammo = getattr(upgrade_instance, 'max_ammo', 999)
+                            upgrade_instance.ammo = min(upgrade_instance.ammo + 3, max_ammo)  # Fat zombie gives 3 ammo
     
     def _set_health(self, level):
         level_manager = get_level_manager()
