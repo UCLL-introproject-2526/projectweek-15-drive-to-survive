@@ -190,10 +190,17 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                     pygame.draw.rect(screen, (60, 60, 80), upgrade_rect, border_radius=5)
                     pygame.draw.rect(screen, WHITE, upgrade_rect, 1, border_radius=5)
                     
+                    # Show upgrade image if available
+                    if hasattr(upgrade, 'image_small'):
+                        img = pygame.transform.scale(upgrade.image_small, (30, 22))
+                        img_x = upgrade_rect.x + 5
+                        img_y = upgrade_rect.y + 6
+                        screen.blit(img, (img_x, img_y))
+                    
                     # Show upgrade name and current level
                     level_text = f"{upgrade.name} Lv.{upgrade.times_purchased}"
                     name_surf = small_font.render(level_text, True, WHITE)
-                    screen.blit(name_surf, (upgrade_rect.x + 5, upgrade_rect.y + 8))
+                    screen.blit(name_surf, (upgrade_rect.x + 40, upgrade_rect.y + 8))
                     
                     # Buy button
                     buy_btn = pygame.Rect(upgrade_rect.x + 140, upgrade_rect.y + 3, 80, 28)
