@@ -52,6 +52,17 @@
       "z-index": 0,
       "stat_upgrade": true,
       "price_multiplier": 1.5
+    },
+    "Bullet Damage": {
+      "car_damage": 0,
+      "damage_reduction": 0,
+      "speed_increase": 0,
+      "price": 200,
+      "bullet_damage_increase": 5,
+      "script": false,
+      "z-index": 0,
+      "stat_upgrade": true,
+      "price_multiplier": 1.5
     }
   }
 }

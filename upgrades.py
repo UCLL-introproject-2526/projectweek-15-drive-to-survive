@@ -33,6 +33,7 @@ class Upgrade:
                 self.fuel_increase = upgrade_data.get("fuel_increase", 0)
                 self.health_increase = upgrade_data.get("health_increase", 0)
                 self.ammunition_increase = upgrade_data.get("ammunition_increase", 0)
+                self.bullet_damage_increase = upgrade_data.get("bullet_damage_increase", 0)
                 self.stat_upgrade = upgrade_data.get("stat_upgrade", False)
                 self.price_multiplier = upgrade_data.get("price_multiplier", 1.0)
                 self.times_purchased = 0
@@ -45,6 +46,8 @@ class Upgrade:
                 self.z_index = 0
                 self.fuel_increase = 0
                 self.health_increase = 0
+                self.ammunition_increase = 0
+                self.bullet_damage_increase = 0
                 self.stat_upgrade = False
                 self.price_multiplier = 1.0
                 self.times_purchased = 0
@@ -58,13 +61,18 @@ class Upgrade:
             self.fuel_increase = 0
             self.health_increase = 0
             self.ammunition_increase = 0
+            self.bullet_damage_increase = 0
             self.stat_upgrade = False
             self.price_multiplier = 1.0
             self.times_purchased = 0
 
-        # For stat upgrades (Fuel Tank, Armor, Ammunition), use shared images
-        if self.stat_upgrade and self.name in ["Fuel Tank", "Armor", "Ammunition"]:
-            shared_img_path = os.path.join("assets", "images", "UI", f"{self.name.lower().replace(' ', '_')}.png")
+        # For stat upgrades (Fuel Tank, Armor, Ammunition, Bullet Damage), use shared images
+        if self.stat_upgrade and self.name in ["Fuel Tank", "Armor", "Ammunition", "Bullet Damage"]:
+            # Special case for Bullet Damage which uses damage.png
+            if self.name == "Bullet Damage":
+                shared_img_path = os.path.join("assets", "images", "UI", "damage.png")
+            else:
+                shared_img_path = os.path.join("assets", "images", "UI", f"{self.name.lower().replace(' ', '_')}.png")
             if os.path.exists(shared_img_path):
                 self.image = pygame.image.load(shared_img_path).convert_alpha()
                 self.image_small = pygame.transform.scale(self.image, (80, 60))

@@ -90,6 +90,7 @@ class Car:
         fuel_bonus = 0
         health_bonus = 0
         ammo_bonus = 0
+        bullet_damage_bonus = 0
 
         for upgrade in equipped_upgrades:
             # For stat upgrades, multiply bonuses by times_purchased
@@ -106,6 +107,8 @@ class Car:
                     health_bonus += upgrade.health_increase * times
                 if hasattr(upgrade, 'ammunition_increase'):
                     ammo_bonus += upgrade.ammunition_increase * times
+                if hasattr(upgrade, 'bullet_damage_increase'):
+                    bullet_damage_bonus += upgrade.bullet_damage_increase * times
             else:
                 # Regular upgrades apply once
                 self.base_damage += upgrade.car_damage
@@ -119,6 +122,8 @@ class Car:
                     health_bonus += upgrade.health_increase
                 if hasattr(upgrade, 'ammunition_increase'):
                     ammo_bonus += upgrade.ammunition_increase
+                if hasattr(upgrade, 'bullet_damage_increase'):
+                    bullet_damage_bonus += upgrade.bullet_damage_increase
 
             # Only add image for non-stat upgrades
             if not getattr(upgrade, 'stat_upgrade', False):
@@ -164,7 +169,7 @@ class Car:
         self.max_fuel = 100 + fuel_bonus  # Base fuel is 100
         self.fuel = min(self.fuel + fuel_bonus, self.max_fuel)
         
-        # Apply ammo bonus to all turret instances
+        # Apply ammo and bullet damage bonus to all turret instances
         for upgrade_instance in self.upgrade_instances:
             if hasattr(upgrade_instance, 'has_shooting') and upgrade_instance.has_shooting:
                 if hasattr(upgrade_instance, 'ammo'):
@@ -178,6 +183,16 @@ class Car:
                         upgrade_instance.ammo = new_max_ammo
                     else:
                         upgrade_instance.ammo = min(upgrade_instance.ammo, upgrade_instance.max_ammo)
+                
+                # Apply bullet damage bonus
+                if hasattr(upgrade_instance, 'bullet_damage'):
+                    base_bullet_damage = 20  # Default bullet damage
+                    upgrade_instance.bullet_damage = base_bullet_damage + bullet_damage_bonus
+                
+                # Apply bullet damage bonus
+                if hasattr(upgrade_instance, 'bullet_damage'):
+                    base_bullet_damage = 20  # Default bullet damage
+                    upgrade_instance.bullet_damage = base_bullet_damage + bullet_damage_bonus
         
         self.update_combined_image()
 
