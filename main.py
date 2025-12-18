@@ -95,6 +95,7 @@ from credits import credits_screen
 from audio import AudioManager
 from levels import get_level_manager, reset_level_manager
 from easter_egg import EasterEgg, invert_screen_colors
+from visual_effects import DayNightCycle, WeatherSystem, determine_weather_for_level
 from level_result import LevelResult
 import sys
 
@@ -455,6 +456,11 @@ async def main_game_loop(controls=None):
     easter_egg = EasterEgg(x_position=-2000)
     # Reset easter egg state when starting new game
     state.easter_egg_activated = False
+    
+    # Initialize visual effects
+    day_night = DayNightCycle()
+    weather = WeatherSystem(WIDTH, HEIGHT)
+    weather.set_weather(determine_weather_for_level(state.current_level), state.current_level)
 
     # Ensure all audio is stopped and reset before starting
     try:
@@ -560,6 +566,9 @@ async def main_game_loop(controls=None):
 
         # Update active upgrades (like turret)
         car.update_upgrades(pressed, zombies)
+        
+        # Update weather effects
+        weather.update()
 
         draw_ground(car.world_x)
         
@@ -635,6 +644,12 @@ async def main_game_loop(controls=None):
         if car.fuel < 30:
             warning_text = small_font.render("LOW FUEL!", True, (255, 50, 50))
             screen.blit(warning_text, (240, 85))  # Position near fuel bar
+        
+        # Draw weather effects
+        weather.draw(screen)
+        
+        # Apply day/night overlay
+        day_night.apply_overlay(screen, state.current_level)
 
         # Check for level completion or game over
         level_manager = get_level_manager()
@@ -747,6 +762,9 @@ async def main_game_loop(controls=None):
                         engine_playing_local = False
             
             zombies = spawn_zombies(state.current_level) or []
+            
+            # Reset weather for new level
+            weather.set_weather(determine_weather_for_level(state.current_level), state.current_level)
 
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
