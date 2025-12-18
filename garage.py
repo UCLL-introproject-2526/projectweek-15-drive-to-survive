@@ -6,6 +6,24 @@ from upgrades import load_upgrades, save_all_upgrades_status
 import asyncio
 
 
+def is_upgrade_locked(upgrade, all_upgrades):
+    """Check if an upgrade should be locked based on dependencies"""
+    # Bullet Damage and Ammunition require Turret to be equipped
+    if upgrade.name in ["Bullet Damage", "Ammunition"]:
+        # Find the Turret upgrade
+        turret_upgrade = None
+        for up in all_upgrades:
+            if up.name == "Turret":
+                turret_upgrade = up
+                break
+        
+        # Lock if Turret is not purchased or not equipped
+        if not turret_upgrade or not turret_upgrade.purchased or not turret_upgrade.equipped:
+            return True
+    
+    return False
+
+
 class ArrowButton:
     def __init__(self, x, y, width, height, direction="left"):
         self.rect = pygame.Rect(x, y, width, height)
@@ -206,6 +224,9 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
             # Add stat upgrades at the bottom
             for upgrade in upgrades:
                 if getattr(upgrade, 'stat_upgrade', False):
+                    # Check if upgrade is locked
+                    is_locked = is_upgrade_locked(upgrade, upgrades)
+                    
                     upgrade_rect = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset + scroll_y, 230, 35)
                     
                     # Draw shadow
@@ -213,31 +234,49 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                     shadow_rect.x += 2
                     shadow_rect.y += 2
                     pygame.draw.rect(screen, (0, 0, 0, 100), shadow_rect, border_radius=5)
-                    # Draw base
-                    pygame.draw.rect(screen, (60, 60, 80), upgrade_rect, border_radius=5)
+                    
+                    # Draw base with different color if locked
+                    base_color = (40, 40, 50) if is_locked else (60, 60, 80)
+                    pygame.draw.rect(screen, base_color, upgrade_rect, border_radius=5)
+                    
                     # Draw top highlight
                     highlight_rect = pygame.Rect(upgrade_rect.x, upgrade_rect.y, upgrade_rect.width, upgrade_rect.height // 3)
-                    pygame.draw.rect(screen, (80, 80, 100), highlight_rect, border_radius=5)
-                    # Draw thick border
-                    pygame.draw.rect(screen, WHITE, upgrade_rect, 2, border_radius=5)
+                    highlight_color = (50, 50, 60) if is_locked else (80, 80, 100)
+                    pygame.draw.rect(screen, highlight_color, highlight_rect, border_radius=5)
                     
-                    # Show upgrade image if available
+                    # Draw thick border
+                    border_color = (100, 100, 100) if is_locked else WHITE
+                    pygame.draw.rect(screen, border_color, upgrade_rect, 2, border_radius=5)
+                    
+                    # Show upgrade image if available (grayed out if locked)
                     if hasattr(upgrade, 'image_small'):
                         img = pygame.transform.scale(upgrade.image_small, (30, 22))
+                        if is_locked:
+                            # Create grayed out version
+                            img = img.copy()
+                            img.fill((80, 80, 80, 128), special_flags=pygame.BLEND_RGBA_MULT)
                         img_x = upgrade_rect.x + 5
                         img_y = upgrade_rect.y + 6
                         screen.blit(img, (img_x, img_y))
                     
                     # Show upgrade name and current level
                     level_text = f"{upgrade.name} Lv.{upgrade.times_purchased}"
-                    name_surf = tiny_font.render(level_text, True, WHITE)
+                    text_color = (120, 120, 120) if is_locked else WHITE
+                    name_surf = tiny_font.render(level_text, True, text_color)
                     screen.blit(name_surf, (upgrade_rect.x + 40, upgrade_rect.y + 8))
                     
-                    # Buy button
+                    # Show lock icon if locked
+                    if is_locked:
+                        lock_text = tiny_font.render("🔒", True, (200, 50, 50))
+                        screen.blit(lock_text, (upgrade_rect.x + 215, upgrade_rect.y + 8))
+                    
+                    # Buy button (disabled if locked)
                     buy_btn = pygame.Rect(upgrade_rect.x + 140, upgrade_rect.y + 3, 80, 28)
-                    can_afford = state.money >= upgrade.price
+                    can_afford = state.money >= upgrade.price and not is_locked
                     btn_color = BUTTON_HOVER if buy_btn.collidepoint(pygame.mouse.get_pos()) and can_afford else BUTTON
-                    if not can_afford:
+                    if is_locked:
+                        btn_color = (60, 60, 60)
+                    elif not can_afford:
                         btn_color = (100, 50, 50)
                     
                     # Draw button shadow
@@ -396,7 +435,9 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                         # Check stat upgrade buy buttons
                         for upgrade in upgrades:
                             if getattr(upgrade, 'stat_upgrade', False) and hasattr(upgrade, '_buy_btn_rect'):
-                                if upgrade._buy_btn_rect.collidepoint(e.pos) and state.money >= upgrade.price:
+                                # Check if upgrade is locked
+                                is_locked = is_upgrade_locked(upgrade, upgrades)
+                                if not is_locked and upgrade._buy_btn_rect.collidepoint(e.pos) and state.money >= upgrade.price:
                                     state.money -= upgrade.price
                                     car.purchase_upgrade(upgrade)
                                     # Keep infinite money in survival mode
