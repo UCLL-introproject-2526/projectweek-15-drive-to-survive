@@ -240,6 +240,14 @@ class SimpleTurret:
                             zombie.alive = False
                             killed = True
 
+                        # Give ammo based on zombie type when killed
+                        if killed:
+                            from zombies import fatZombie
+                            if isinstance(zombie, fatZombie):
+                                self.ammo += 3  # Fat zombie gives 3 ammo
+                            else:
+                                self.ammo += 1  # Normal zombie gives 1 ammo
+
                         # Remove bullet regardless; caller awards money if needed
                         if bullet in self.bullets:
                             self.bullets.remove(bullet)

@@ -123,6 +123,14 @@ class TurretUpgrade:
                             elif hasattr(main_module, 'money_ref'):
                                 money = main_module.money_ref()
                                 money += 15
+                            
+                            # Give ammo based on zombie type
+                            # Fat zombies have more health, normal zombies have less
+                            from zombies import fatZombie
+                            if isinstance(zombie, fatZombie):
+                                self.ammo += 3  # Fat zombie gives 3 ammo
+                            else:
+                                self.ammo += 1  # Normal zombie gives 1 ammo
 
                         if bullet in self.bullets:
                             self.bullets.remove(bullet)

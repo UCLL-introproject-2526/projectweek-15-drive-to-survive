@@ -109,10 +109,12 @@ class Car:
                             if hasattr(module, upgrade.name.replace(' ', '') + 'Upgrade'):
                                 UpgradeClass = getattr(module, upgrade.name.replace(' ', '') + 'Upgrade')
                                 instance = UpgradeClass(self)
+                                instance._upgrade_ref = upgrade  # Store reference for equipped check
                                 self.upgrade_instances.append(instance)
                                 upgrade.script_instance = instance
                             elif hasattr(module, 'UpgradeScript'):
                                 instance = module.UpgradeScript(self)
+                                instance._upgrade_ref = upgrade  # Store reference for equipped check
                                 self.upgrade_instances.append(instance)
                                 upgrade.script_instance = instance
                 except Exception as e:
@@ -146,10 +148,12 @@ class Car:
                             if hasattr(module, upgrade.name.replace(' ', '') + 'Upgrade'):
                                 UpgradeClass = getattr(module, upgrade.name.replace(' ', '') + 'Upgrade')
                                 instance = UpgradeClass(self)
+                                instance._upgrade_ref = upgrade  # Store reference for equipped check
                                 self.upgrade_instances.append(instance)
                                 upgrade.script_instance = instance
                             elif hasattr(module, 'UpgradeScript'):
                                 instance = module.UpgradeScript(self)
+                                instance._upgrade_ref = upgrade  # Store reference for equipped check
                                 self.upgrade_instances.append(instance)
                                 upgrade.script_instance = instance
                 except Exception as e:
