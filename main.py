@@ -616,6 +616,9 @@ async def main_game_loop(controls=None):
             
             # Restart audio after garage when starting new game
             if garage_result == 'start_game':
+                # Reset level_start_money for the next attempt
+                level_start_money = state.money
+                
                 # Stop all audio first
                 try:
                     audio_manager.stop_engine_sound()
