@@ -4,6 +4,22 @@
   "author": "Victor",
   "version": "1.0.0",
   "upgrades": {
+    "Spikes": {
+      "car_damage": 5,
+      "damage_reduction": 2,
+      "speed_increase": 0.1,
+      "price": 100,
+      "script": false,
+      "z-index": 2
+    },
+    "Gun": {
+      "car_damage": 0,
+      "damage_reduction": 0,
+      "speed_increase": 0,
+      "price": 200,
+      "script": true,
+      "z-index": 1
+    },
     "Fuel Tank": {
       "car_damage": 0,
       "damage_reduction": 0,
