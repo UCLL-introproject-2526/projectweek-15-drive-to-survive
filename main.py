@@ -718,11 +718,11 @@ async def main_game_loop(controls=None):
         # Update UI to show ammo if player has a turret
         # Position the text at the right side of the screen
         if has_shooting and shooting_upgrade and hasattr(shooting_upgrade, 'ammo'):
-            ui_text = f"Money: ${state.money}  |  Ammo: {shooting_upgrade.ammo}"
+            ui_text = f"Money: ${state.money}  |  Ammo: " + f"{shooting_upgrade.ammo}"
         else:
             ui_text = f"Money: ${state.money}"
         
-        ui = small_font.render(ui_text, True, BLACK)
+        ui = small_font.render(ui_text, True, WHITE)
         # Position at top right corner with some padding
         ui_rect = ui.get_rect()
         ui_x = WIDTH - ui_rect.width - 20  # 20 pixels from right edge
