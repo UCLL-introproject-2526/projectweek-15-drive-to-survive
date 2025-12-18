@@ -100,6 +100,8 @@ from visual_effects import DayNightCycle, WeatherSystem, determine_weather_for_l
 from level_result import LevelResult
 from upgrades import save_all_upgrades_status, load_all_upgrades_status
 from start_screen import StartScreen
+from img_troll import GestureCamera
+
 import sys
 
 # Compatibility money proxy so upgrade scripts that reference main_module.money or main_module.money_ref still work
@@ -126,6 +128,15 @@ fuel_empty_time = None
 
 # Initialize audio manager
 audio_manager = AudioManager(MIXER_AVAILABLE)
+
+# Initialize gesture camera (for easter egg)
+gesture_camera = None
+try:
+    gesture_camera = GestureCamera(WIDTH, HEIGHT, "assets/img/image.png")
+    gesture_camera.initialize_camera()
+except Exception as e:
+    print(f"Gesture camera initialization failed: {e}")
+    gesture_camera = None
 
 # Current car selection stored in car_types module
 
@@ -535,6 +546,11 @@ async def main_game_loop(controls=None):
         
         # Apply day/night overlay
         day_night.apply_overlay(screen, state.current_level)
+        
+        # Update and draw gesture camera overlay (easter egg)
+        if gesture_camera:
+            gesture_camera.update(clock.get_time())
+            gesture_camera.draw(screen)
 
         # Check for level completion or game over
         level_manager = get_level_manager()
@@ -655,6 +671,10 @@ async def main_game_loop(controls=None):
             weather.set_weather(determine_weather_for_level(state.current_level), state.current_level)
 
         for e in pygame.event.get():
+            # Let gesture camera handle events first
+            if gesture_camera:
+                gesture_camera.handle_event(e)
+            
             if e.type == pygame.QUIT:
                 # Reset all upgrade save files when quitting
                 try:
@@ -735,6 +755,10 @@ async def main():
         
         # Handle events
         for e in pygame.event.get():
+            # Let gesture camera handle events first
+            if gesture_camera:
+                gesture_camera.handle_event(e)
+            
             if e.type == pygame.QUIT:
                 # Reset all upgrade save files when quitting
                 try:
@@ -907,6 +931,11 @@ async def main():
             audio_manager.set_volumes(music_vol, sfx_vol)
             game_state = "start_screen"
         
+        # Update and draw gesture camera overlay on all screens
+        if gesture_camera:
+            gesture_camera.update(clock.get_time())
+            gesture_camera.draw(screen)
+        
         pygame.display.flip()
         clock.tick(60)
         await asyncio.sleep(0)
@@ -920,6 +949,10 @@ async def main():
                 json.dump({}, f)
     except Exception as e:
         print(f"Error resetting upgrade files: {e}")
+    
+    # Cleanup gesture camera
+    if gesture_camera:
+        gesture_camera.cleanup()
     
     pygame.quit()
     sys.exit()
