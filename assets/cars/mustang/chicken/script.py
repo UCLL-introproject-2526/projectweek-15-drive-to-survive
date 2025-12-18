@@ -99,34 +99,35 @@ class TurretUpgrade:
                         killed = False
                         if hasattr(zombie, 'health'):
                             try:
+                                prev_health = zombie.health
                                 zombie.health -= self.bullet_damage
+                                new_health = zombie.health
                             except Exception:
-                                pass
-                            if getattr(zombie, 'health', 0) <= 0:
-                                # Start death animation flow used by zombies, but do not
-                                # restart the animation if it's already playing.
-                                if not getattr(zombie, 'dying', False):
-                                    zombie.dying = True
-                                    zombie.death_timer = 0
-                                    zombie.current_frame = 0
+                                prev_health = getattr(zombie, 'health', 0)
+                                new_health = getattr(zombie, 'health', 0)
+
+                            if prev_health > 0 and new_health <= 0 and not getattr(zombie, 'dying', False):
+                                # Start death animation flow and count kill only once
+                                zombie.dying = True
+                                zombie.death_timer = 0
+                                zombie.current_frame = 0
                                 killed = True
                         else:
-                            # Fallback: mark dead immediately
-                            zombie.alive = False
-                            killed = True
+                            if getattr(zombie, 'alive', False) and not getattr(zombie, 'dying', False):
+                                zombie.alive = False
+                                killed = True
 
-                        # Award money only when the zombie is killed
+                        # Award money and ammo only when the zombie is killed by this bullet
                         if killed:
                             import state
                             state.money += 15
-                            
+
                             # Give ammo based on zombie type
-                            # Fat zombies have more health, normal zombies have less
                             from zombies import fatZombie
                             if isinstance(zombie, fatZombie):
-                                self.ammo += 3  # Fat zombie gives 3 ammo
+                                self.ammo = min(self.ammo + 3, self.max_ammo)
                             else:
-                                self.ammo += 1  # Normal zombie gives 1 ammo
+                                self.ammo = min(self.ammo + 1, self.max_ammo)
 
                         if bullet in self.bullets:
                             self.bullets.remove(bullet)
