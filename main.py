@@ -95,6 +95,7 @@ from credits import credits_screen
 from audio import AudioManager
 from levels import get_level_manager, reset_level_manager
 from easter_egg import EasterEgg, invert_screen_colors
+from level_result import LevelResult
 import sys
 
 # Compatibility money proxy so upgrade scripts that reference main_module.money or main_module.money_ref still work
@@ -444,6 +445,9 @@ async def main_game_loop(controls=None):
     # Show level intro screen
     await show_level_intro(state.current_level)
     
+    # Track starting money for this level attempt
+    level_start_money = state.money
+    
     car = reset_car(controls)
     zombies = spawn_zombies(state.current_level) or []
     
@@ -650,6 +654,9 @@ async def main_game_loop(controls=None):
                 reward = level_manager.get_completion_reward(state.current_level)
                 state.money += reward
             
+            # Calculate total money earned this attempt (zombies + bonus)
+            money_earned_this_round = state.money - level_start_money
+            
             # Display reason for a moment
             reason_text = font.render(reason, True, (255, 255, 0))
             screen.blit(reason_text, (WIDTH//2 - reason_text.get_width()//2, HEIGHT//2 - 40))
@@ -660,6 +667,19 @@ async def main_game_loop(controls=None):
             
             pygame.display.flip()
             await asyncio.sleep(2)
+            
+            # Show level result screen
+            level_result = LevelResult(screen, font, small_font)
+            continue_game = level_result.show(
+                level_number=state.current_level,
+                completed=level_complete,
+                money_earned=money_earned_this_round,
+                previous_money=level_start_money
+            )
+            
+            if not continue_game:
+                running = False
+                return
             
             # Stop engine sound before going to garage
             try:
