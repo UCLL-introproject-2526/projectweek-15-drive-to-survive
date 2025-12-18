@@ -1,0 +1,14 @@
+{
+  "name": "Ram",
+  "description": "Adds a ram to the car, allowing it to kill enemies with a powerful impact.",
+
+  "z-index": 2,
+  "car_damage": 20,
+  "damage_reduction": 20,
+  "speed_increase": 0.05,
+  "price": 1000,
+
+  "author": "Victor",
+  "version": "1.0.0",
+  "dependencies": []
+}
