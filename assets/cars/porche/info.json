@@ -1,9 +1,25 @@
 {
-  "name": "Porche",
-  "is_default": "False",
+  "name": "porche",
+  "is_default": "True",
   "author": "Victor",
   "version": "1.0.0",
   "upgrades": {
+    "Ram": {
+      "car_damage": 5,
+      "damage_reduction": 2,
+      "speed_increase": 0.1,
+      "price": 1000,
+      "script": false,
+      "z-index": 2
+    },
+    "Turret": {
+      "car_damage": 0,
+      "damage_reduction": 0,
+      "speed_increase": 0,
+      "price": 1200,
+      "script": true,
+      "z-index": 1
+    },
     "Fuel Tank": {
       "car_damage": 0,
       "damage_reduction": 0,
@@ -17,10 +33,21 @@
     },
     "Armor": {
       "car_damage": 0,
-      "damage_reduction": 2,
-      "speed_increase": -0.05,
+      "damage_reduction": 0,
+      "speed_increase": 0,
       "price": 250,
       "health_increase": 20,
+      "script": false,
+      "z-index": 0,
+      "stat_upgrade": true,
+      "price_multiplier": 1.5
+    },
+    "Ammunition": {
+      "car_damage": 0,
+      "damage_reduction": 0,
+      "speed_increase": 0,
+      "price": 100,
+      "ammunition_increase": 5,
       "script": false,
       "z-index": 0,
       "stat_upgrade": true,
