@@ -78,18 +78,21 @@ class EasterEgg:
 
 
 def invert_screen_colors(screen):
-    """Invert all colors on the screen for easter egg effect"""
-    try:
-        # Try using surfarray method (requires NumPy)
-        pixel_array = pygame.surfarray.array3d(screen)
-        inverted = 255 - pixel_array
-        inverted_surface = pygame.surfarray.make_surface(inverted)
-        screen.blit(inverted_surface, (0, 0))
-    except Exception:
-        # Fallback method using blend modes (works without NumPy)
-        width, height = screen.get_size()
-        white_surface = pygame.Surface((width, height))
-        white_surface.fill((255, 255, 255))
-        
-        # Use BLEND_RGB_SUB to invert colors (white - color = inverted color)
-        screen.blit(white_surface, (0, 0), special_flags=pygame.BLEND_RGB_SUB)
+    """Apply a visual effect for easter egg activation"""
+    # Create a color tint overlay that's compatible with all systems
+    width, height = screen.get_size()
+    
+    # Create a rainbow/psychedelic tint effect
+    overlay = pygame.Surface((width, height), pygame.SRCALPHA)
+    
+    # Add a pulsing color overlay (changes based on frame)
+    import time
+    pulse = abs(int((time.time() * 500) % 510 - 255))
+    
+    # Create gradient effect
+    overlay.fill((255 - pulse, pulse, 200, 60))
+    screen.blit(overlay, (0, 0))
+    
+    # Add some visual borders to make it obvious
+    pygame.draw.rect(screen, (255, 255, 0), (0, 0, width, height), 5)
+    pygame.draw.rect(screen, (255, 0, 255), (5, 5, width-10, height-10), 3)
