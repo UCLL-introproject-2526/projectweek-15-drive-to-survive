@@ -158,14 +158,26 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                 
                 # Different colors based on status
                 if upgrade.equipped:
-                    pygame.draw.rect(screen, EQUIPPED_COLOR, item_rect)  # Green for equipped
+                    base_color = EQUIPPED_COLOR
                 elif upgrade.purchased:
-                    pygame.draw.rect(screen, PURCHASED_COLOR, item_rect)  # Blue for purchased but not equipped
+                    base_color = PURCHASED_COLOR
                 else:
-                    pygame.draw.rect(screen, (80,80,80), item_rect)  # Gray for not purchased
+                    base_color = (80,80,80)
+                
+                # Draw shadow
+                shadow_rect = item_rect.copy()
+                shadow_rect.x += 2
+                shadow_rect.y += 2
+                pygame.draw.rect(screen, (0, 0, 0, 100), shadow_rect)
+                # Draw base
+                pygame.draw.rect(screen, base_color, item_rect)
+                # Draw top highlight
+                highlight_rect = pygame.Rect(item_rect.x, item_rect.y, item_rect.width, item_rect.height // 4)
+                highlight_color = tuple(min(255, c + 40) for c in base_color)
+                pygame.draw.rect(screen, highlight_color, highlight_rect)
                     
                 if item_rect.collidepoint(pygame.mouse.get_pos()):
-                    pygame.draw.rect(screen, (120,120,120), item_rect, 2)
+                    pygame.draw.rect(screen, (200,200,200), item_rect, 3)
 
                 # Align bottom of image to bottom of the button
                 img = upgrade.image_small
@@ -196,8 +208,18 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                 if getattr(upgrade, 'stat_upgrade', False):
                     upgrade_rect = pygame.Rect(upgrade_area.x + 10, upgrade_area.y + 10 + y_offset + scroll_y, 230, 35)
                     
+                    # Draw shadow
+                    shadow_rect = upgrade_rect.copy()
+                    shadow_rect.x += 2
+                    shadow_rect.y += 2
+                    pygame.draw.rect(screen, (0, 0, 0, 100), shadow_rect, border_radius=5)
+                    # Draw base
                     pygame.draw.rect(screen, (60, 60, 80), upgrade_rect, border_radius=5)
-                    pygame.draw.rect(screen, WHITE, upgrade_rect, 1, border_radius=5)
+                    # Draw top highlight
+                    highlight_rect = pygame.Rect(upgrade_rect.x, upgrade_rect.y, upgrade_rect.width, upgrade_rect.height // 3)
+                    pygame.draw.rect(screen, (80, 80, 100), highlight_rect, border_radius=5)
+                    # Draw thick border
+                    pygame.draw.rect(screen, WHITE, upgrade_rect, 2, border_radius=5)
                     
                     # Show upgrade image if available
                     if hasattr(upgrade, 'image_small'):
@@ -217,9 +239,20 @@ async def garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                     btn_color = BUTTON_HOVER if buy_btn.collidepoint(pygame.mouse.get_pos()) and can_afford else BUTTON
                     if not can_afford:
                         btn_color = (100, 50, 50)
-                        
+                    
+                    # Draw button shadow
+                    btn_shadow = buy_btn.copy()
+                    btn_shadow.x += 1
+                    btn_shadow.y += 1
+                    pygame.draw.rect(screen, (0, 0, 0, 100), btn_shadow, border_radius=5)
+                    # Draw button
                     pygame.draw.rect(screen, btn_color, buy_btn, border_radius=5)
-                    pygame.draw.rect(screen, WHITE, buy_btn, 1, border_radius=5)
+                    # Draw highlight
+                    btn_highlight = pygame.Rect(buy_btn.x, buy_btn.y, buy_btn.width, buy_btn.height // 3)
+                    highlight_color = tuple(min(255, c + 30) for c in btn_color)
+                    pygame.draw.rect(screen, highlight_color, btn_highlight, border_radius=5)
+                    # Draw border
+                    pygame.draw.rect(screen, WHITE, buy_btn, 2, border_radius=5)
                     
                     price_surf = tiny_font.render(f"${upgrade.price}", True, WHITE if can_afford else (150, 150, 150))
                     screen.blit(price_surf, (buy_btn.centerx - price_surf.get_width()//2, buy_btn.centery - price_surf.get_height()//2))

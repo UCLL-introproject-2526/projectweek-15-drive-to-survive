@@ -7,12 +7,17 @@ import pygame
 ALL_UPGRADES = {}
 
 class Upgrade:
-    def __init__(self, folder, upgrade_name):
+    def __init__(self, folder, upgrade_name, is_stat_upgrade=False):
         self.folder = folder
         self.name = upgrade_name
 
         # Load upgrade info from the car's info.json
-        car_info_file = os.path.join(os.path.dirname(folder), "info.json")
+        # For stat upgrades, folder is the car folder; for normal upgrades, it's the upgrade folder
+        if is_stat_upgrade:
+            car_info_file = os.path.join(folder, "info.json")
+        else:
+            car_info_file = os.path.join(os.path.dirname(folder), "info.json")
+            
         if os.path.exists(car_info_file):
             with open(car_info_file, "r") as f:
                 car_data = json.load(f)
@@ -57,14 +62,27 @@ class Upgrade:
             self.price_multiplier = 1.0
             self.times_purchased = 0
 
-        img_file = os.path.join(folder, "image.png")
-        if os.path.exists(img_file):
-            self.image = pygame.image.load(img_file).convert_alpha()
-            self.image_small = pygame.transform.scale(self.image, (80, 60))
+        # For stat upgrades (Fuel Tank, Armor, Ammunition), use shared images
+        if self.stat_upgrade and self.name in ["Fuel Tank", "Armor", "Ammunition"]:
+            shared_img_path = os.path.join("assets", "images", "UI", f"{self.name.lower().replace(' ', '_')}.png")
+            if os.path.exists(shared_img_path):
+                self.image = pygame.image.load(shared_img_path).convert_alpha()
+                self.image_small = pygame.transform.scale(self.image, (80, 60))
+            else:
+                # Fallback to placeholder
+                self.image = pygame.Surface((100, 60), pygame.SRCALPHA)
+                pygame.draw.rect(self.image, (150, 150, 150), (0, 0, 100, 60), border_radius=5)
+                self.image_small = pygame.transform.scale(self.image, (80, 60))
         else:
-            self.image = pygame.Surface((100, 60), pygame.SRCALPHA)
-            pygame.draw.rect(self.image, (150, 150, 150), (0, 0, 100, 60), border_radius=5)
-            self.image_small = pygame.transform.scale(self.image, (80, 60))
+            # For regular upgrades, use car-specific images
+            img_file = os.path.join(folder, "image.png")
+            if os.path.exists(img_file):
+                self.image = pygame.image.load(img_file).convert_alpha()
+                self.image_small = pygame.transform.scale(self.image, (80, 60))
+            else:
+                self.image = pygame.Surface((100, 60), pygame.SRCALPHA)
+                pygame.draw.rect(self.image, (150, 150, 150), (0, 0, 100, 60), border_radius=5)
+                self.image_small = pygame.transform.scale(self.image, (80, 60))
 
         self.script_instance = None
         self.purchased = False
@@ -134,6 +152,7 @@ def load_upgrades():
         print(f"Error: Car folder '{car_folder}' not found!")
         return upgrades_list
 
+    # First, load upgrades from folders
     for folder_name in os.listdir(car_folder):
         folder_path = os.path.join(car_folder, folder_name)
         if os.path.isdir(folder_path):
@@ -145,6 +164,29 @@ def load_upgrades():
                     ALL_UPGRADES[key] = up
                 except Exception as e:
                     print(f"Error loading upgrade from {folder_path}: {e}")
+
+    # Then, load stat upgrades from info.json that don't have folders
+    car_info_file = os.path.join(car_folder, "info.json")
+    if os.path.exists(car_info_file):
+        try:
+            with open(car_info_file, "r") as f:
+                car_data = json.load(f)
+            
+            if "upgrades" in car_data:
+                for upgrade_name, upgrade_data in car_data["upgrades"].items():
+                    # Check if this upgrade is a stat_upgrade and wasn't already loaded from a folder
+                    if upgrade_data.get("stat_upgrade", False):
+                        key = f"{current_car.name}.{upgrade_name}"
+                        if key not in ALL_UPGRADES:
+                            # Create upgrade without a folder (will use shared images)
+                            try:
+                                up = Upgrade(car_folder, upgrade_name, is_stat_upgrade=True)
+                                upgrades_list.append(up)
+                                ALL_UPGRADES[key] = up
+                            except Exception as e:
+                                print(f"Error loading stat upgrade {upgrade_name}: {e}")
+        except Exception as e:
+            print(f"Error reading car info.json for stat upgrades: {e}")
 
     return upgrades_list
 
