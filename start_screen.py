@@ -89,20 +89,23 @@ class StartScreen:
             self.background = Background("", width, height)  # Will use fallback
         
         # Create logo - adjust position as needed
-        self.logo = Logo("assets/banner/image.png", 450, 300, width//2, 150)
+        self.logo = Logo("assets/banner/image.png", 600, 420, width//2, 250)
         
-        # Create buttons
-        button_width = 250
+        # Create buttons horizontally arranged
+        button_width = 200
         button_height = 60
-        button_x = width//2 - button_width//2
+        button_y = 400  # Same y-position for all buttons
+        spacing = 20
+        total_width = (button_width * 4) + (spacing * 3)
+        start_x = width//2 - total_width//2
         
-        self.start_button = Button(button_x, 280, button_width, button_height, 
+        self.start_button = Button(start_x, button_y, button_width, button_height, 
                                   'Campaign', (50, 150, 50), (70, 200, 70), font)
-        self.survival_button = Button(button_x, 360, button_width, button_height,
-                                     'Survival Mode', (150, 100, 50), (200, 130, 70), font)
-        self.credits_button = Button(button_x, 440, button_width, button_height, 
+        self.survival_button = Button(start_x + button_width + spacing, button_y, button_width, button_height,
+                                     'Survival', (150, 100, 50), (200, 130, 70), font)
+        self.credits_button = Button(start_x + (button_width + spacing) * 2, button_y, button_width, button_height, 
                                      'Credits', (100, 100, 150), (150, 150, 200), font)
-        self.quit_button = Button(button_x, 520, button_width, button_height, 
+        self.quit_button = Button(start_x + (button_width + spacing) * 3, button_y, button_width, button_height, 
                                   'Quit', (150, 50, 50), (200, 70, 70), font)
         
         # Settings button in top right with icon
