@@ -721,19 +721,44 @@ async def main_game_loop(controls=None):
                 shooting_upgrade = upgrade_instance
                 break
         
-        # Update UI to show ammo if player has a turret
-        # Position the text at the right side of the screen
+        # Update UI: reserve space on the right for an ammo badge and place
+        # money immediately to its left. When ammo is present the badge
+        # width is computed from the actual text so it grows as needed.
+        padding = 6
+
+        ammo_bg_y = 20
+
         if has_shooting and shooting_upgrade and hasattr(shooting_upgrade, 'ammo'):
-            ui_text = f"Money: ${state.money}  |  Ammo: " + f"{shooting_upgrade.ammo}"
+            # Compute width from actual ammo text so badge adapts to number length
+            ammo_display = f"Ammo: {shooting_upgrade.ammo}"
+            ammo_text = small_font.render(ammo_display, True, WHITE)
+            ammo_bg_w = ammo_text.get_width() + padding * 2
+            ammo_bg_h = ammo_text.get_height() + padding * 2
+            ammo_bg_x = WIDTH - 20 - ammo_bg_w
+
+            # Money sits to the left of the ammo badge (fixed relative to badge)
+            money_text = small_font.render(f"Money: ${state.money}", True, WHITE)
+            money_rect = money_text.get_rect(topright=(ammo_bg_x - 8, ammo_bg_y))
+            screen.blit(money_text, money_rect)
+
+            # Semi-transparent black background for readability
+            ammo_bg = pygame.Surface((ammo_bg_w, ammo_bg_h), pygame.SRCALPHA)
+            ammo_bg.fill((0, 0, 0, 160))
+            screen.blit(ammo_bg, (ammo_bg_x, ammo_bg_y))
+
+            # Blit ammo count inside the badge
+            screen.blit(ammo_text, (ammo_bg_x + padding, ammo_bg_y + padding))
         else:
-            ui_text = f"Money: ${state.money}"
-        
-        ui = small_font.render(ui_text, True, WHITE)
-        # Position at top right corner with some padding
-        ui_rect = ui.get_rect()
-        ui_x = WIDTH - ui_rect.width - 20  # 20 pixels from right edge
-        ui_y = 20  # 20 pixels from top
-        screen.blit(ui, (ui_x, ui_y))
+            # No ammo shown: reserve a small width so money stays in same place
+            placeholder_ammo = "Ammo: 0"
+            measure_text = small_font.render(placeholder_ammo, True, WHITE)
+            ammo_bg_w = measure_text.get_width() + padding * 2
+            ammo_bg_x = WIDTH - 20 - ammo_bg_w
+
+            # Money sits at the fixed position left of the reserved area
+            money_text = small_font.render(f"Money: ${state.money}", True, WHITE)
+            money_rect = money_text.get_rect(topright=(ammo_bg_x - 8, ammo_bg_y))
+            screen.blit(money_text, money_rect)
         
         # Show warning when fuel is low
         if car.fuel < 30:
