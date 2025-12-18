@@ -79,10 +79,11 @@ class TurretUpgrade:
                                 zombie.alive = False
                                 killed = True
 
-                        # Add money when killed (only when killed by this bullet)
+                        # Add money and kills when killed (only when killed by this bullet)
                         if killed:
                             import state
                             state.money += 15
+                            state.kills += 1  # Count turret kills
 
                             # Give ammo based on zombie type
                             from zombies import fatZombie

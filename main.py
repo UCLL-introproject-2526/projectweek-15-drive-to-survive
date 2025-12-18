@@ -471,6 +471,7 @@ async def main_game_loop(controls=None):
             gained = z.update(car, get_ground_height)
             if gained:
                 state.money += gained
+            
             z.draw(screen, car.world_x, get_ground_height)
 
         # Draw both health and fuel bars

@@ -156,6 +156,11 @@ class SurvivalMode:
             self.car.rect.y = int(self.car.y)
             self.car.rect.x = self.WIDTH//3 - self.car.rect.width//2
             
+            # Track zombie states BEFORE turret updates (to count turret kills)
+            zombie_states_before = {}
+            for z in self.zombies:
+                zombie_states_before[id(z)] = (z.alive, z.dying)
+            
             # Update upgrades
             self.car.update_upgrades(pressed, self.zombies)
             
@@ -213,10 +218,18 @@ class SurvivalMode:
             
             # Update and draw zombies
             for z in self.zombies[:]:
+                # Get zombie state before turret updated
+                was_alive_before, was_dying_before = zombie_states_before.get(id(z), (False, True))
+                
                 gained = z.update(self.car, self.get_flat_ground)
                 if gained:
                     self.survival_money += gained  # Track in survival mode, don't affect campaign money
                     self.kills += 1
+                
+                # Count kills from turrets (zombie was alive before turret update, now dying/dead)
+                if was_alive_before and not was_dying_before:
+                    if (z.dying or not z.alive) and not gained:
+                        self.kills += 1
                 
                 z.draw(self.screen, self.car.world_x, self.get_flat_ground)
                 
