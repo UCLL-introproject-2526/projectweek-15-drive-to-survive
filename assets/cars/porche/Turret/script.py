@@ -10,6 +10,7 @@ class TurretUpgrade:
         self.bullet_speed = 8
         self.bullet_damage = 20
         self.ammo = 5  # Starting ammunition
+        self.max_ammo = 5  # Maximum ammunition (can be increased by upgrades)
         self.has_shooting = True  # Flag for UI detection
         self.shoot_sound = self._create_shoot_sound()
         
