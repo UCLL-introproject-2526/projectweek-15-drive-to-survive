@@ -1,5 +1,6 @@
 import pygame
 import math
+import os
 from terrain import get_ground_height
 
 # ==============================
@@ -14,7 +15,21 @@ class EasterEgg:
         self.height = 60
         self.collected = False
         self.rotation = 0
-        
+        self.pop_sound = None
+
+        # Try to load the pop sound (non-fatal if unavailable)
+        try:
+            if pygame.mixer.get_init():
+                pop_path = os.path.join("assets", "music", "easter-egg-pop-geluid.mp3")
+                if os.path.exists(pop_path):
+                    try:
+                        self.pop_sound = pygame.mixer.Sound(pop_path)
+                    except Exception:
+                        self.pop_sound = None
+        except Exception:
+            # Mixer not initialized or other audio issue — ignore
+            self.pop_sound = None
+
         # Create a colorful egg shape
         self.create_egg_surface()
         
@@ -56,6 +71,30 @@ class EasterEgg:
         if (car_left < egg_right and car_right > egg_left and
             car_top < egg_bottom and car_bottom > egg_top):
             self.collected = True
+            # Attempt lazy-load of pop sound if it wasn't loaded earlier
+            if self.pop_sound is None:
+                try:
+                    if pygame.mixer.get_init():
+                        pop_path = os.path.join("assets", "music", "easter-egg-pop-geluid.mp3")
+                        if os.path.exists(pop_path):
+                            try:
+                                self.pop_sound = pygame.mixer.Sound(pop_path)
+                            except Exception as e:
+                                print(f"EasterEgg: failed to load pop sound: {e}")
+                                self.pop_sound = None
+                except Exception as e:
+                    print(f"EasterEgg: audio init check failed: {e}")
+                    self.pop_sound = None
+
+            # Play pop sound if available
+            try:
+                if self.pop_sound:
+                    self.pop_sound.play()
+                else:
+                    # Optional debug: indicate no pop sound available
+                    print("EasterEgg: pop sound not available")
+            except Exception as e:
+                print(f"EasterEgg: failed to play pop sound: {e}")
             return True
         return False
     
