@@ -156,12 +156,12 @@ class Car:
         self.upgrades_images.sort(key=lambda x: x['z_index'])
         
         # Apply fuel and health bonuses to max values
-        self.health = self.health + health_bonus
-        if self.health > self.max_health:
-            self.health = self.max_health
+        # First update max_health, then increase current health
+        self.max_health = 40 + health_bonus  # Base health is 40
+        self.health = min(self.health + health_bonus, self.max_health)
         
         # Fuel bonus affects capacity - set max fuel and fill it up
-        self.max_fuel = self.fuel + fuel_bonus
+        self.max_fuel = 100 + fuel_bonus  # Base fuel is 100
         self.fuel = min(self.fuel + fuel_bonus, self.max_fuel)
         
         # Apply ammo bonus to all turret instances

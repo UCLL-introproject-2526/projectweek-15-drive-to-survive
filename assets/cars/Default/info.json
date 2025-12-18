@@ -33,8 +33,8 @@
     },
     "Armor": {
       "car_damage": 0,
-      "damage_reduction": 2,
-      "speed_increase": -0.05,
+      "damage_reduction": 0,
+      "speed_increase": 0,
       "price": 250,
       "health_increase": 20,
       "script": false,
