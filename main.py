@@ -571,12 +571,17 @@ async def main_game_loop(controls=None):
             
             # Show level result screen
             level_result = LevelResult(screen, font, small_font)
-            continue_game = level_result.show(
-                level_number=state.current_level,
-                completed=level_complete,
-                money_earned=money_earned_this_round,
-                previous_money=level_start_money
-            )
+            try:
+                continue_game = await level_result.show(
+                    level_number=state.current_level,
+                    completed=level_complete,
+                    money_earned=money_earned_this_round,
+                    previous_money=level_start_money
+                )
+            except Exception as e:
+                print(f"Error showing level result screen: {e}")
+                # In web environments, if the result screen fails, continue to garage
+                continue_game = True
             
             if not continue_game:
                 running = False

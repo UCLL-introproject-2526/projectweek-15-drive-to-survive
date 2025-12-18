@@ -4,6 +4,7 @@ Toont een tussenscherm na elk level met resultaten
 """
 
 import pygame
+import asyncio
 
 class LevelResult:
     """Beheerd het tussenscherm na elk level"""
@@ -28,7 +29,7 @@ class LevelResult:
         # Button
         self.button_rect = None
         
-    def show(self, level_number, completed, money_earned, previous_money):
+    async def show(self, level_number, completed, money_earned, previous_money):
         """
         Toont het result scherm
         
@@ -49,7 +50,7 @@ class LevelResult:
         panel_x = (self.screen.get_width() - panel_width) // 2
         panel_y = (self.screen.get_height() - panel_height) // 2
         
-        clock = pygame.time.Clock()
+        clock = pygame.time.Clock()        
         running = True
         
         while running:
@@ -180,6 +181,6 @@ class LevelResult:
             self.screen.blit(button_text, button_text_rect)
             
             pygame.display.flip()
-            clock.tick(60)
+            await asyncio.sleep(1/60)
         
         return False
