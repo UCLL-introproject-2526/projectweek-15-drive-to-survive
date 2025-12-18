@@ -88,6 +88,7 @@ from garage import garage
 from credits import credits_screen
 from audio import AudioManager
 from levels import get_level_manager, reset_level_manager
+from replay import get_recorder, start_recording, stop_recording, record_frame, has_replay, get_replay, ReplayPlayer
 import sys
 
 # Compatibility money proxy so upgrade scripts that reference main_module.money or main_module.money_ref still work
@@ -350,6 +351,114 @@ def draw_background(cam_x):
 # ==============================
 # Main Game
 # ==============================
+async def show_replay(replay_frames):
+    """Display replay of the last game session"""
+    from replay import ReplayPlayer
+    
+    if not replay_frames or len(replay_frames) == 0:
+        return
+    
+    player = ReplayPlayer(replay_frames)
+    player.start()
+    
+    # Create a temporary car for visualization (won't be updated, just displayed)
+    car = reset_car()
+    zombies = spawn_zombies(state.current_level) or []
+    
+    running = True
+    frame_counter = 0
+    
+    while running and not player.is_finished():
+        clock.tick(60)
+        await asyncio.sleep(0)
+        
+        # Get current replay frame
+        frame_data = player.get_current_frame()
+        if not frame_data:
+            break
+        
+        # Apply frame data to car
+        car_data = frame_data['car']
+        car.world_x = car_data['world_x']
+        car.y = car_data['y']
+        car.speed = car_data['speed']
+        car.vspeed = car_data['vspeed']
+        car.angle = car_data['angle']
+        car.health = car_data['health']
+        car.fuel = car_data['fuel']
+        car.max_health = car_data['max_health']
+        car.max_fuel = car_data['max_fuel']
+        car.rect.topleft = (WIDTH//3 - car.rect.width//2, car.y)
+        
+        # Apply frame data to zombies
+        zombie_data = frame_data['zombies']
+        for i, zdata in enumerate(zombie_data):
+            if i < len(zombies):
+                zombies[i].x = zdata['x']
+                zombies[i].alive = zdata['alive']
+                zombies[i].dying = zdata.get('dying', False)
+                zombies[i].death_timer = zdata.get('death_timer', 0)
+                zombies[i].health = zdata['health']
+                zombies[i].current_frame = zdata.get('current_frame', 0)
+        
+        # Draw the scene
+        draw_background(car.world_x)
+        draw_ground(car.world_x)
+        car.draw(screen)
+        
+        for z in zombies:
+            z.draw(screen, car.world_x, get_ground_height)
+        
+        # Draw UI
+        draw_health_bar(car)
+        draw_fuel_bar(car)
+        
+        # Show "REPLAY" overlay
+        replay_text = font.render("REPLAY", True, (255, 255, 0))
+        replay_bg = pygame.Surface((replay_text.get_width() + 40, replay_text.get_height() + 20))
+        replay_bg.set_alpha(180)
+        replay_bg.fill((0, 0, 0))
+        screen.blit(replay_bg, (WIDTH//2 - replay_text.get_width()//2 - 20, 20))
+        screen.blit(replay_text, (WIDTH//2 - replay_text.get_width()//2, 30))
+        
+        # Show skip instruction
+        skip_text = small_font.render("Press SPACE to skip", True, WHITE)
+        screen.blit(skip_text, (WIDTH//2 - skip_text.get_width()//2, HEIGHT - 50))
+        
+        # Handle events
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_SPACE or e.key == pygame.K_ESCAPE:
+                    running = False
+        
+        pygame.display.flip()
+        
+        # Advance replay
+        player.advance()
+        frame_counter += 1
+    
+    # Show "Replay Ended" message
+    if running:
+        screen.fill((20, 20, 30))
+        end_text = font.render("Replay Ended", True, WHITE)
+        screen.blit(end_text, (WIDTH//2 - end_text.get_width()//2, HEIGHT//2))
+        continue_text = small_font.render("Press any key to continue", True, WHITE)
+        screen.blit(continue_text, (WIDTH//2 - continue_text.get_width()//2, HEIGHT//2 + 50))
+        pygame.display.flip()
+        
+        waiting = True
+        while waiting:
+            await asyncio.sleep(0)
+            for e in pygame.event.get():
+                if e.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif e.type == pygame.KEYDOWN or e.type == pygame.MOUSEBUTTONDOWN:
+                    waiting = False
+
 async def show_level_intro(level_number):
     """Display level introduction screen before starting the level"""
     level_manager = get_level_manager()
@@ -429,6 +538,9 @@ async def main_game_loop(controls=None):
     
     # Show level intro screen
     await show_level_intro(state.current_level)
+    
+    # Start recording for replay
+    start_recording()
     
     car = reset_car(controls)
     zombies = spawn_zombies(state.current_level) or []
@@ -566,24 +678,33 @@ async def main_game_loop(controls=None):
         if car.fuel < 30:
             warning_text = small_font.render("LOW FUEL!", True, (255, 50, 50))
             screen.blit(warning_text, (240, 85))  # Position near fuel bar
+        
+        # Record frame for replay
+        record_frame(car, zombies, state.distance, state.money)
 
         # Check for level completion or game over
         level_manager = get_level_manager()
         level_complete = level_manager.is_level_complete(state.distance, state.current_level)
         
         if level_complete or car.health <= 0 or car.fuel <= 0:
+            # Stop recording
+            stop_recording()
+            
             # Show end game reason
             if car.health <= 0:
                 reason = "HEALTH DEPLETED!"
                 reward = 0
+                show_replay_after = True
             elif car.fuel <= 0:
                 reason = "OUT OF FUEL!"
                 reward = 0
+                show_replay_after = True
             else:
                 reason = "LEVEL COMPLETE!"
                 # Award completion bonus
                 reward = level_manager.get_completion_reward(state.current_level)
                 state.money += reward
+                show_replay_after = False
             
             # Display reason for a moment
             reason_text = font.render(reason, True, (255, 255, 0))
@@ -595,6 +716,11 @@ async def main_game_loop(controls=None):
             
             pygame.display.flip()
             await asyncio.sleep(2)
+            
+            # Show replay if player died (not if level completed)
+            if show_replay_after and has_replay():
+                replay_frames = get_replay()
+                await show_replay(replay_frames)
             
             # Advance to next level or reset
             if level_complete:
