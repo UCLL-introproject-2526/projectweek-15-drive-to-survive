@@ -95,6 +95,7 @@ from credits import credits_screen
 from audio import AudioManager
 from levels import get_level_manager, reset_level_manager
 from replay import get_recorder, start_recording, stop_recording, record_frame, has_replay, get_replay, ReplayPlayer
+from easter_egg import EasterEgg, invert_screen_colors
 import sys
 
 # Compatibility money proxy so upgrade scripts that reference main_module.money or main_module.money_ref still work
@@ -598,6 +599,11 @@ async def main_game_loop(controls=None):
     
     car = reset_car(controls)
     zombies = spawn_zombies(state.current_level) or []
+    
+    # Create easter egg at position -2000
+    easter_egg = EasterEgg(x_position=-2000)
+    # Reset easter egg state when starting new game
+    state.easter_egg_activated = False
 
     # Ensure all audio is stopped and reset before starting
     try:
@@ -690,11 +696,25 @@ async def main_game_loop(controls=None):
 
         # Update distance based on car's travel (200 is start position)
         state.distance = car.world_x - 200
+        
+        # Check easter egg collision
+        if easter_egg.check_collision(car):
+            state.easter_egg_activated = True
+            # Play a sound effect if available
+            try:
+                # You could add a special sound effect here
+                pass
+            except Exception:
+                pass
 
         # Update active upgrades (like turret)
         car.update_upgrades(pressed, zombies)
 
         draw_ground(car.world_x)
+        
+        # Draw easter egg before car
+        easter_egg.draw(screen, car.world_x)
+        
         car.draw(screen)
 
         # Draw upgrade effects (like bullets)
@@ -823,6 +843,10 @@ async def main_game_loop(controls=None):
             set_current_level(state.current_level)
             clear_terrain()
             
+            # Reset easter egg for next game
+            easter_egg = EasterEgg(x_position=-2000)
+            state.easter_egg_activated = False
+            
             # Ensure engine sound is stopped before garage
             try:
                 audio_manager.stop_engine_sound()
@@ -879,6 +903,13 @@ async def main_game_loop(controls=None):
             elif e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_ESCAPE:
                     running = False  # Return to start screen
+        
+        # Apply color inversion if easter egg is activated
+        if state.easter_egg_activated:
+            invert_screen_colors(screen)
+            # Show easter egg active indicator
+            easter_text = small_font.render("CHEAT MODE ACTIVE!", True, (255, 255, 100))
+            screen.blit(easter_text, (WIDTH//2 - easter_text.get_width()//2, HEIGHT - 30))
 
         pygame.display.flip()
 

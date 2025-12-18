@@ -289,22 +289,39 @@ class Car:
             self.health = 0
 
     def update(self, keys):
+        # Check if easter egg is activated
+        import state
+        easter_egg_active = getattr(state, 'easter_egg_activated', False)
+        
+        # If easter egg is active, maintain unlimited resources
+        if easter_egg_active:
+            self.health = self.max_health
+            self.fuel = self.max_fuel
+            # Set ammo to max for all turrets
+            for upgrade_instance in self.upgrade_instances:
+                if hasattr(upgrade_instance, 'has_shooting') and upgrade_instance.has_shooting:
+                    if hasattr(upgrade_instance, 'max_ammo'):
+                        upgrade_instance.ammo = upgrade_instance.max_ammo
+        
         # 'keys' is expected to be the sequence returned by pygame.key.get_pressed()
         fuel_consumed = False
         if keys[self.controls['accelerate_right']] and self.fuel > 0:
             if self.speed < 9:
                 self.speed += self.base_speed * self.speed_multiplier
-            self.fuel -= self.fuel_consumption_rate
-            self.fuel = max(self.fuel, 0)
+            if not easter_egg_active:  # Only consume fuel if easter egg not active
+                self.fuel -= self.fuel_consumption_rate
+                self.fuel = max(self.fuel, 0)
             fuel_consumed = True
         if keys[self.controls['accelerate_left']] and self.fuel > 0:
             self.speed -= self.base_speed * self.speed_multiplier * 0.8
-            self.fuel -= self.fuel_consumption_rate
-            self.fuel = max(self.fuel, 0)
+            if not easter_egg_active:  # Only consume fuel if easter egg not active
+                self.fuel -= self.fuel_consumption_rate
+                self.fuel = max(self.fuel, 0)
             fuel_consumed = True
         if not fuel_consumed and self.fuel > 0:
-            self.fuel -= self.fuel_consumption_rate * 0.1
-            self.fuel = max(self.fuel, 0)
+            if not easter_egg_active:  # Only consume fuel if easter egg not active
+                self.fuel -= self.fuel_consumption_rate * 0.1
+                self.fuel = max(self.fuel, 0)
 
         # sample slope farther left/right so tilt is more visible
         sample = SLOPE_SAMPLE
