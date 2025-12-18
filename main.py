@@ -358,6 +358,13 @@ async def show_replay(replay_frames):
     if not replay_frames or len(replay_frames) == 0:
         return
     
+    # Stop all sounds before replay
+    try:
+        audio_manager.stop_engine_sound()
+        audio_manager.stop_music()
+    except Exception:
+        pass
+    
     player = ReplayPlayer(replay_frames)
     player.start()
     
@@ -486,6 +493,13 @@ async def show_replay(replay_frames):
                     sys.exit()
                 elif e.type == pygame.KEYDOWN or e.type == pygame.MOUSEBUTTONDOWN:
                     waiting = False
+    
+    # Reset all audio after replay
+    try:
+        audio_manager.stop_engine_sound()
+        audio_manager.stop_music()
+    except Exception:
+        pass
 
 async def show_level_intro(level_number):
     """Display level introduction screen before starting the level"""
@@ -564,6 +578,12 @@ async def main_game_loop(controls=None):
             'shoot': pygame.K_e
         }
     
+    # Stop menu music before showing level intro
+    try:
+        audio_manager.stop_music()
+    except Exception:
+        pass
+    
     # Show level intro screen
     await show_level_intro(state.current_level)
     
@@ -573,12 +593,19 @@ async def main_game_loop(controls=None):
     car = reset_car(controls)
     zombies = spawn_zombies(state.current_level) or []
 
-    # Start background music for gameplay
+    # Ensure all audio is stopped and reset before starting
+    try:
+        audio_manager.stop_engine_sound()
+        audio_manager.stop_music()
+    except Exception:
+        pass
+    
+    # Small delay to ensure clean state
+    await asyncio.sleep(0.05)
+    
+    # Start game audio (music and engine)
     if audio_manager.AUDIO_ENABLED and audio_manager._bg_music_loaded:
         audio_manager.play_bg_music()
-    else:
-        # If no background track available, stop any menu music
-        audio_manager.stop_music()
 
     engine_playing_local = False
     # Track current engine volume factor (0..1 relative multiplier to AUDIO_VOLUME_SFX)
@@ -745,6 +772,12 @@ async def main_game_loop(controls=None):
             pygame.display.flip()
             await asyncio.sleep(2)
             
+            # Stop engine sound before replay or going to garage
+            try:
+                audio_manager.stop_engine_sound()
+            except Exception:
+                pass
+            
             # Show replay if player died (not if level completed)
             if show_replay_after and has_replay():
                 replay_frames = get_replay()
@@ -758,6 +791,13 @@ async def main_game_loop(controls=None):
             state.distance = 0
             set_current_level(state.current_level)
             clear_terrain()
+            
+            # Ensure engine sound is stopped before garage
+            try:
+                audio_manager.stop_engine_sound()
+            except Exception:
+                pass
+            
             car = reset_car(controls)  # This will reapply all purchased upgrades
             garage_result = await garage(car, screen, clock, WIDTH, HEIGHT, font, small_font, garage_bg,
                    audio_manager.stop_engine_sound, audio_manager.play_menu_music, audio_manager.AUDIO_ENABLED, audio_manager._menu_music_loaded,
@@ -765,6 +805,39 @@ async def main_game_loop(controls=None):
             # If they went back to menu, exit the game loop
             if garage_result == 'back_to_menu':
                 running = False
+            
+            # Restart audio after garage when starting new game
+            if garage_result == 'start_game':
+                # Stop all audio first
+                try:
+                    audio_manager.stop_engine_sound()
+                    audio_manager.stop_music()
+                except Exception:
+                    pass
+                
+                # Small delay
+                await asyncio.sleep(0.05)
+                
+                # Restart game music
+                if audio_manager.AUDIO_ENABLED and audio_manager._bg_music_loaded:
+                    audio_manager.play_bg_music()
+                
+                # Restart engine sound
+                engine_playing_local = False
+                engine_current_factor = 0.0
+                if audio_manager.AUDIO_ENABLED and _engine_sound:
+                    try:
+                        engine_current_factor = audio_manager.ENGINE_VOLUME_IDLE_FACTOR
+                        try:
+                            _engine_sound.set_volume(audio_manager.AUDIO_VOLUME_SFX * engine_current_factor)
+                        except Exception:
+                            _engine_sound.set_volume(audio_manager.AUDIO_VOLUME_SFX)
+                        _engine_sound.play(-1)
+                        engine_playing_local = True
+                    except Exception as e:
+                        print(f"Failed to restart engine idle sound: {e}")
+                        engine_playing_local = False
+            
             zombies = spawn_zombies(state.current_level) or []
 
         for e in pygame.event.get():

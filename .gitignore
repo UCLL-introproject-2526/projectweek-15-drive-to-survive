@@ -1,4 +1,6 @@
 # Byte-compiled / optimized / DLL files
+upgrades_status.json
+
 __pycache__/
 *.py[codz]
 *$py.class
@@ -206,6 +208,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
 
 # Marimo
 marimo/_static/
