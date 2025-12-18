@@ -144,6 +144,10 @@ class Zombie:
             damage = max(0, scaled_damage - car.damage_reduction)
             car.take_damage(damage)
             money_earned = int(10 * (1 + self.level * 0.1))
+            
+            # Give ammo to turret upgrades when zombie is killed by collision
+            # Normal zombie gives 1 ammo, fat zombie gives 3 ammo
+            self._give_ammo_to_turrets(car, ammo_amount=1)
 
         if self.dying:
             self.death_timer += 1
@@ -159,6 +163,21 @@ class Zombie:
                 self.current_frame = (self.current_frame + 1) % len(self.walk_frames)
 
         return money_earned
+
+    def _give_ammo_to_turrets(self, car, ammo_amount):
+        """Give ammo to any turret-related upgrades the car has equipped."""
+        if hasattr(car, 'upgrade_instances'):
+            for upgrade_instance in car.upgrade_instances:
+                # Check if this upgrade has shooting capability (turret-related)
+                if hasattr(upgrade_instance, 'has_shooting') and upgrade_instance.has_shooting:
+                    if hasattr(upgrade_instance, 'ammo'):
+                        # Verify the upgrade is actually equipped
+                        if hasattr(upgrade_instance, '_upgrade_ref'):
+                            if upgrade_instance._upgrade_ref.equipped:
+                                upgrade_instance.ammo += ammo_amount
+                        else:
+                            # Fallback for upgrades without reference
+                            upgrade_instance.ammo += ammo_amount
 
     def draw(self, surface, cam_x, terrain):
         if not (self.alive or self.dying):
@@ -186,6 +205,21 @@ class Zombie:
 
 
 class fatZombie(Zombie):
+    def _give_ammo_to_turrets(self, car, ammo_amount):
+        """Override to give 3 ammo for fat zombies."""
+        if hasattr(car, 'upgrade_instances'):
+            for upgrade_instance in car.upgrade_instances:
+                # Check if this upgrade has shooting capability (turret-related)
+                if hasattr(upgrade_instance, 'has_shooting') and upgrade_instance.has_shooting:
+                    if hasattr(upgrade_instance, 'ammo'):
+                        # Verify the upgrade is actually equipped
+                        if hasattr(upgrade_instance, '_upgrade_ref'):
+                            if upgrade_instance._upgrade_ref.equipped:
+                                upgrade_instance.ammo += 3  # Fat zombie gives 3 ammo
+                        else:
+                            # Fallback for upgrades without reference
+                            upgrade_instance.ammo += 3  # Fat zombie gives 3 ammo
+    
     def _set_health(self, level):
         level_manager = get_level_manager()
         base_health = 200
