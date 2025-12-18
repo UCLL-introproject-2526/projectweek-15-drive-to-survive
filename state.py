@@ -1,5 +1,5 @@
 # Shared mutable game state
-money = 0
+money = 1100000
 distance = 0
 current_level = 1
 easter_egg_activated = False

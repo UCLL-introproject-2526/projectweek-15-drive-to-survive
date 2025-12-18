@@ -12,7 +12,7 @@
       "script": false,
       "z-index": 2
     },
-    "chicken": {
+    "Turret": {
       "car_damage": 0,
       "damage_reduction": 0,
       "speed_increase": 0.1,
