@@ -28,6 +28,7 @@ class Car:
         self.air_angle = None
         self.health = 40
         self.fuel = 100
+        self.max_health = 100
         
         # Store controls (use defaults if not provided)
         if controls is None:

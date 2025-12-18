@@ -104,12 +104,6 @@ class _MoneyProxy:
     def __repr__(self):
         return str(state.money)
 
-# Attach proxy and money_ref to main module for scripts that expect them
-main_mod = sys.modules.get('__main__')
-if main_mod is not None:
-    main_mod.money = _MoneyProxy()
-    main_mod.money_ref = lambda: main_mod.money
-
 
 GRAVITY = 0.095
 FRICTION = 0.99
@@ -295,10 +289,10 @@ def draw_health_bar(car):
     x = 20
     y = 50
     pygame.draw.rect(screen, HEALTH_BG, (x, y, bar_width, bar_height))
-    health_width = int((car.health / 40) * bar_width)
+    health_width = int((car.health / car.max_health) * bar_width)
     pygame.draw.rect(screen, HEALTH_FG, (x, y, health_width, bar_height))
     pygame.draw.rect(screen, BLACK, (x, y, bar_width, bar_height), 2)
-    health_text = small_font.render(f"Health: {int(car.health)}/40", True, WHITE)
+    health_text = small_font.render(f"Health: {int(car.health)}/{int(car.max_health)}", True, WHITE)
     screen.blit(health_text, (x + 5, y - 25))
 
 def draw_fuel_bar(car):
@@ -412,6 +406,7 @@ def reset_car(controls=None):
     car.vspeed = 0
     car.health = 40
     car.fuel = 100
+    car.max_health = car.health
     
     # Now apply equipped upgrades
     car.apply_equipped_upgrades()
@@ -423,6 +418,14 @@ def reset_car(controls=None):
 # ==============================
 async def main_game_loop(controls=None):
     """Main game loop after starting from garage"""
+    # Default controls if none provided
+    if controls is None:
+        controls = {
+            'accelerate_right': pygame.K_RIGHT,
+            'accelerate_left': pygame.K_LEFT,
+            'shoot': pygame.K_e
+        }
+    
     # Show level intro screen
     await show_level_intro(state.current_level)
     

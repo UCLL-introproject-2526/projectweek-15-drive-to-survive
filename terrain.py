@@ -1,8 +1,16 @@
 import math
+import os
+import random
+import pygame
 
 # Terrain module handles ground height generation and caches
 terrain_points = {}
 current_level = 1
+
+# Decorative terrain images (placed on top of soil)
+terrain_images = []  # list of pygame.Surface (scaled)
+# decorations keyed by an integer sample x -> list of {'img', 'world_x', 'y'}
+decorations = {}
 
 def set_current_level(level):
     global current_level
