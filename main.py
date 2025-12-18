@@ -51,8 +51,14 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Zombie Car")
 clock = pygame.time.Clock()
 
-font = pygame.font.SysFont("arial", 32)
-small_font = pygame.font.SysFont("arial", 22)
+# Load custom pixel font
+try:
+    font = pygame.font.Font("assets/fonts/Grand9K Pixel.ttf", 26)
+    small_font = pygame.font.Font("assets/fonts/Grand9K Pixel.ttf", 18)
+except:
+    # Fallback to system font if custom font fails to load
+    font = pygame.font.SysFont("arial", 32)
+    small_font = pygame.font.SysFont("arial", 22)
 
 # ==============================
 # Colors
