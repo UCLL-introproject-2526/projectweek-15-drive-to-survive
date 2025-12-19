@@ -1,5 +1,6 @@
 import pygame
 import math
+import os
 
 class TurretUpgrade:
     def __init__(self, car):
@@ -12,12 +13,40 @@ class TurretUpgrade:
         self.ammo = 5  # Starting ammunition
         self.max_ammo = 5  # Maximum ammunition (can be increased by upgrades)
         self.has_shooting = True  # Flag for UI detection
-        self.shoot_sound = self._create_shoot_sound()
-        if self.shoot_sound:
-            self.shoot_sound.set_volume(0.6)  # Set volume for turret sound
-
-
-    
+        
+        # Load shoot sound effect - WAV is best for browsers, then OGG, then MP3
+        self.shoot_sound = None
+        
+        # Try formats in order: WAV (best for browsers) -> OGG -> MP3 -> synthesized
+        sound_candidates = [
+            ("WAV", os.path.join("assets", "music", "kipje.wav")),
+            ("OGG", os.path.join("assets", "music", "kipje.ogg")),
+            ("MP3", os.path.join("assets", "music", "kipje.mp3")),
+        ]
+        
+        for format_name, sound_path in sound_candidates:
+            if os.path.exists(sound_path):
+                try:
+                    self.shoot_sound = pygame.mixer.Sound(sound_path)
+                    self.shoot_sound.set_volume(0.7)
+                    print(f"Chicken: Loaded {format_name} sound from {sound_path}")
+                    break  # Stop after first successful load
+                except Exception as e:
+                    print(f"Chicken: Failed to load {format_name} from {sound_path}: {e}")
+                    continue
+        
+        # If no file worked, use synthesized fallback sound
+        if self.shoot_sound is None:
+            print("Chicken: No sound file could be loaded, using synthesized fallback")
+            try:
+                self.shoot_sound = self._create_shoot_sound()
+                if self.shoot_sound:
+                    self.shoot_sound.set_volume(0.7)
+                    print("Chicken: Using synthesized fallback sound")
+                else:
+                    print("Chicken: ERROR - synthesized sound creation returned None")
+            except Exception as e:
+                print(f"Chicken: ERROR - Failed to create synthesized sound: {e}")
         
     def update(self, keys, zombies):
         # Decrease cooldown
@@ -27,6 +56,7 @@ class TurretUpgrade:
         # Shoot when the shoot key is pressed (use car's control settings)
         shoot_key = self.car.controls.get('shoot', pygame.K_e)
         if keys[shoot_key] and self.cooldown == 0 and self.ammo > 0:
+            print(f"Chicken: Attempting to shoot, ammo={self.ammo}, shoot_sound={self.shoot_sound is not None}")
             if self.shoot(zombies):  # Only consume ammo if we actually shot
                 self.cooldown = self.max_cooldown
                 self.ammo -= 1
@@ -59,10 +89,9 @@ class TurretUpgrade:
                     zombie_rect = pygame.Rect(zombie_screen_x, zombie_screen_y, z_w, z_h)
                     
                     if bullet_rect.colliderect(zombie_rect):
-                        # Apply bullet damage if zombie exposes `health`
+                        # Apply bullet damage if the zombie exposes a health attribute.
                         killed = False
                         if hasattr(zombie, 'health'):
-                            # Record previous health so we only count kill when crossing from >0 to <=0
                             try:
                                 prev_health = zombie.health
                                 zombie.health -= self.bullet_damage
@@ -72,18 +101,17 @@ class TurretUpgrade:
                                 new_health = getattr(zombie, 'health', 0)
 
                             if prev_health > 0 and new_health <= 0 and not getattr(zombie, 'dying', False):
-                                # Start death animation and count the kill only once
+                                # Start death animation flow and count kill only once
                                 zombie.dying = True
                                 zombie.death_timer = 0
                                 zombie.current_frame = 0
                                 killed = True
                         else:
-                            # For zombies without health, only count kill if they are currently alive
                             if getattr(zombie, 'alive', False) and not getattr(zombie, 'dying', False):
                                 zombie.alive = False
                                 killed = True
 
-                        # Add money, kills, and ammo only when this bullet actually killed the zombie
+                        # Award money, kills, and ammo only when the zombie is killed by this bullet
                         if killed:
                             import state
                             state.money += 15
@@ -99,7 +127,7 @@ class TurretUpgrade:
                         if bullet in self.bullets:
                             self.bullets.remove(bullet)
                         break
-
+    
     def _create_shoot_sound(self):
         """Create a simple synthesized shoot sound effect"""
         try:
@@ -123,7 +151,6 @@ class TurretUpgrade:
 
             try:
                 sound = pygame.mixer.Sound(buffer=bytes(buf))
-                sound.set_volume(1)
                 return sound
             except Exception as e:
                 print(f"Failed to create pygame Sound from buffer: {e}")
@@ -135,7 +162,7 @@ class TurretUpgrade:
     def shoot(self, zombies):
         if not zombies:
             return False
-            
+        
         # Find nearest zombie in front of car
         nearest_zombie = None
         min_distance = float('inf')
@@ -148,27 +175,18 @@ class TurretUpgrade:
                     nearest_zombie = zombie
                     
         if nearest_zombie:
-            try:
-                if self.shoot_sound:
-                    # Ensure mixer ready
-                    if not pygame.mixer.get_init():
-                        try:
-                            pygame.mixer.init()
-                        except Exception:
-                            pass
-                    # Use find_channel to avoid stopping other sounds
-                    try:
-                        channel = pygame.mixer.find_channel()
-                        if channel:
-                            channel.play(self.shoot_sound)
-                        else:
-                            self.shoot_sound.play()
-                    except:
-                        self.shoot_sound.play()
-            except Exception:
-                pass
-
-
+            # Play shoot sound only when we have a target
+            print(f"Chicken: Found target zombie, playing sound... (shoot_sound exists: {self.shoot_sound is not None})")
+            if self.shoot_sound:
+                try:
+                    print(f"Chicken: Playing kipje sound now!")
+                    self.shoot_sound.play()
+                    print(f"Chicken: Sound play() called successfully")
+                except Exception as e:
+                    print(f"Error playing chicken sound: {e}")
+            else:
+                print("Warning: shoot_sound is None, no chicken sound will play")
+            
             # Calculate direction
             start_x = WIDTH//3
             start_y = self.car.y + self.car.rect.height//2
@@ -192,9 +210,9 @@ class TurretUpgrade:
     def draw(self, cam_x):
         # Draw bullets
         for bullet in self.bullets:
-            pygame.draw.circle(screen, (255, 255, 0), 
+            pygame.draw.circle(screen, (255, 255, 255), 
                              (int(bullet['x']), int(bullet['y'])), 5)
-            pygame.draw.circle(screen, (255, 200, 0), 
+            pygame.draw.circle(screen, (255, 200, 255), 
                              (int(bullet['x']), int(bullet['y'])), 3)
 
 # Alternative class name for compatibility

@@ -10,7 +10,11 @@ class TurretUpgrade:
         self.bullet_speed = 8
         self.bullet_damage = 20
         self.ammo = 5  # Starting ammunition
+        self.max_ammo = 5  # Maximum ammunition (can be increased by upgrades)
         self.has_shooting = True  # Flag for UI detection
+        self.shoot_sound = self._create_shoot_sound()
+        if self.shoot_sound:
+            self.shoot_sound.set_volume(0.6)  # Set volume for turret sound
         
     def update(self, keys, zombies):
         # Decrease cooldown
@@ -75,10 +79,11 @@ class TurretUpgrade:
                                 zombie.alive = False
                                 killed = True
 
-                        # Add money when killed (only when killed by this bullet)
+                        # Add money and kills when killed (only when killed by this bullet)
                         if killed:
                             import state
                             state.money += 15
+                            state.kills += 1  # Count turret kills
 
                             # Give ammo based on zombie type
                             from zombies import fatZombie
@@ -96,6 +101,38 @@ class TurretUpgrade:
                         if bullet in self.bullets:
                             self.bullets.remove(bullet)
                         break
+    
+    def _create_shoot_sound(self):
+        """Create a simple synthesized shoot sound effect"""
+        try:
+            # Create a short high-pitched "pop" sound without numpy
+            sample_rate = 22050
+            duration = 0.12  # 120ms
+            frequency = 900  # Hz
+            n_samples = int(sample_rate * duration)
+
+            import struct
+            buf = bytearray()
+            max_amp = int(0.3 * 32767)
+            for i in range(n_samples):
+                t = i / sample_rate
+                envelope = math.exp(-12 * t)
+                sample = int(max_amp * envelope * (0.6 * math.sin(2.0 * math.pi * frequency * t) + 0.4 * math.sin(2.0 * math.pi * frequency * 1.6 * t)))
+                packed = struct.pack('<h', sample)
+                # stereo
+                buf.extend(packed)
+                buf.extend(packed)
+
+            try:
+                sound = pygame.mixer.Sound(buffer=bytes(buf))
+                sound.set_volume(1)
+                return sound
+            except Exception as e:
+                print(f"Failed to create pygame Sound from buffer: {e}")
+                return None
+        except Exception as e:
+            print(f"Could not synthesize shoot sound: {e}")
+            return None
                         
     def shoot(self, zombies):
         if not zombies:
@@ -113,6 +150,26 @@ class TurretUpgrade:
                     nearest_zombie = zombie
                     
         if nearest_zombie:
+            try:
+                if self.shoot_sound:
+                    # Ensure mixer ready
+                    if not pygame.mixer.get_init():
+                        try:
+                            pygame.mixer.init()
+                        except Exception:
+                            pass
+                    # Use find_channel to avoid stopping other sounds
+                    try:
+                        channel = pygame.mixer.find_channel()
+                        if channel:
+                            channel.play(self.shoot_sound)
+                        else:
+                            self.shoot_sound.play()
+                    except:
+                        self.shoot_sound.play()
+            except Exception:
+                pass
+            
             # Calculate direction
             start_x = WIDTH//3
             start_y = self.car.y + self.car.rect.height//2

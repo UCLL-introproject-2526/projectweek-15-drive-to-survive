@@ -49,7 +49,7 @@ print(f"Mixer available: {MIXER_AVAILABLE} (init: {pygame.mixer.get_init()})")
 
 WIDTH, HEIGHT = 1000, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Zombie Car")
+pygame.display.set_caption("Drive to Survive")
 clock = pygame.time.Clock()
 
 # Load custom pixel font
@@ -100,6 +100,7 @@ from visual_effects import DayNightCycle, WeatherSystem, determine_weather_for_l
 from level_result import LevelResult
 from upgrades import save_all_upgrades_status, load_all_upgrades_status
 from start_screen import StartScreen
+
 import sys
 
 # Compatibility money proxy so upgrade scripts that reference main_module.money or main_module.money_ref still work
@@ -470,6 +471,7 @@ async def main_game_loop(controls=None):
             gained = z.update(car, get_ground_height)
             if gained:
                 state.money += gained
+            
             z.draw(screen, car.world_x, get_ground_height)
 
         # Draw both health and fuel bars
@@ -570,12 +572,17 @@ async def main_game_loop(controls=None):
             
             # Show level result screen
             level_result = LevelResult(screen, font, small_font)
-            continue_game = level_result.show(
-                level_number=state.current_level,
-                completed=level_complete,
-                money_earned=money_earned_this_round,
-                previous_money=level_start_money
-            )
+            try:
+                continue_game = await level_result.show(
+                    level_number=state.current_level,
+                    completed=level_complete,
+                    money_earned=money_earned_this_round,
+                    previous_money=level_start_money
+                )
+            except Exception as e:
+                print(f"Error showing level result screen: {e}")
+                # In web environments, if the result screen fails, continue to garage
+                continue_game = True
             
             if not continue_game:
                 running = False
