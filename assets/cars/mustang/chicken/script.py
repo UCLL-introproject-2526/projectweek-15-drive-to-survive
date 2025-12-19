@@ -40,7 +40,7 @@ class TurretUpgrade:
 
                     # Try to load as a Sound object first
                     self.shoot_sound = pygame.mixer.Sound(found)
-                    self.shoot_sound.set_volume(0.3)
+                    self.shoot_sound.set_volume(1.0)
                 except Exception as e:
                     # In some environments Sound() fails for certain codecs; fall back to using music streaming
                     print(f"Could not load chicken shoot as Sound ({found}): {e}; will try music-playback fallback.")
