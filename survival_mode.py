@@ -102,6 +102,13 @@ class SurvivalMode:
         import state
         from main import audio_manager
         from visual_effects import DayNightCycle, WeatherSystem
+        from controls_screen import ControlsScreen
+        
+        # Show controls screen before starting survival mode
+        controls_screen = ControlsScreen(self.screen, self.font, self.small_font)
+        continue_game = await controls_screen.show(self.car.controls, "Survival Mode")
+        if not continue_game:
+            return  # Player cancelled, return to menu
         
         # Start audio
         if audio_manager.AUDIO_ENABLED and audio_manager._bg_music_loaded:

@@ -100,6 +100,7 @@ from visual_effects import DayNightCycle, WeatherSystem, determine_weather_for_l
 from level_result import LevelResult
 from upgrades import save_all_upgrades_status, load_all_upgrades_status
 from start_screen import StartScreen
+from controls_screen import ControlsScreen
 
 import sys
 
@@ -320,6 +321,12 @@ async def main_game_loop(controls=None):
     
     # Show level intro screen
     await show_level_intro(state.current_level)
+    
+    # Show controls screen after level intro
+    controls_screen = ControlsScreen(screen, font, small_font)
+    continue_game = await controls_screen.show(controls, f"Level {state.current_level}")
+    if not continue_game:
+        return  # Player cancelled, return to menu
     
     # Track starting money for this level attempt
     level_start_money = state.money
