@@ -259,6 +259,20 @@ class Car:
             if upgrade.damage_reduction > 0:
                 self.damage_reduction += upgrade.damage_reduction
             
+            # Apply ammunition and bullet damage upgrades to turret instances
+            if hasattr(upgrade, 'ammunition_increase') and upgrade.ammunition_increase > 0:
+                for upgrade_instance in self.upgrade_instances:
+                    if hasattr(upgrade_instance, 'has_shooting') and upgrade_instance.has_shooting:
+                        if hasattr(upgrade_instance, 'max_ammo'):
+                            upgrade_instance.max_ammo += upgrade.ammunition_increase
+                            upgrade_instance.ammo += upgrade.ammunition_increase
+            
+            if hasattr(upgrade, 'bullet_damage_increase') and upgrade.bullet_damage_increase > 0:
+                for upgrade_instance in self.upgrade_instances:
+                    if hasattr(upgrade_instance, 'has_shooting') and upgrade_instance.has_shooting:
+                        if hasattr(upgrade_instance, 'bullet_damage'):
+                            upgrade_instance.bullet_damage += upgrade.bullet_damage_increase
+            
             # Increment times purchased and increase price
             upgrade.times_purchased += 1
             upgrade.price = int(upgrade.price * getattr(upgrade, 'price_multiplier', 1.5))
